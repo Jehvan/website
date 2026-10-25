@@ -43,7 +43,7 @@ const api = {
   },
   resume() { game.paused = false; ui.hidePause(); },
   quit() { ui.hidePause(); api.toCamp(); },
-  setGfx(v) { settings.gfx = v; game.settings = settings; writeSettings(settings); renderer.setQuality?.(v); onResize(); },
+  setGfx(v) { settings.gfx = v; game.settings = settings; writeSettings(settings); renderer.setQuality?.(v); if (game.mode === 'stage') renderer.setStage(game); onResize(); },
 };
 const ui = createUI(els.screen, api);
 
@@ -77,6 +77,17 @@ function onResize() {
 addEventListener('resize', onResize);
 
 async function initRenderer() {
+  const forced2d = new URLSearchParams(location.search).has('2d');
+  if (!forced2d) {
+    try {
+      const probe = document.createElement('canvas');
+      if (probe.getContext('webgl2') || probe.getContext('webgl')) {
+        const { createRenderer } = await import('./renderer.js');
+        renderer = createRenderer(els.gl, settings);
+        return;
+      }
+    } catch (err) { console.warn('3D renderer unavailable, using 2D fallback:', err); }
+  }
   renderer = createRender2D(els.gl);
 }
 
