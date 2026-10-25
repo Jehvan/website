@@ -6,6 +6,7 @@ import { rarityOf } from './items.js';
 import { createCharacter } from './art/characters.js';
 import { buildWorld } from './art/world3d.js';
 import { glowTexture, discTexture } from './art/textures.js';
+import { setEnvIntensity, std, lin } from './art/materials.js';
 
 const TAU = Math.PI * 2;
 const SKY = {
@@ -103,11 +104,11 @@ export function createRenderer(canvas, settings) {
     if (skyCfg.indoor) scene.background = new THREE.Color(skyCfg.fog);
     gl.toneMappingExposure = skyCfg.exp * (+new URLSearchParams(location.search).get('exp') || 1);
     applyQuality();
-    world = buildWorld(L, quality, THREE);
+    world = buildWorld(L, quality);
     scene.add(world.group);
     playerVis = createCharacter(game.save.cls, quality);
     entities.add(playerVis.root);
-    scene.traverse((o) => { const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []; for (const m of ms) if (m.isMeshStandardMaterial) m.envMapIntensity = qp('env', 0.22); });
+    setEnvIntensity(qp('env', skyCfg.indoor ? 0.5 : 0.22));
     camInit = false;
     for (const l of pointLights) { l.visible = false; l.intensity = 0; }
   }
@@ -130,8 +131,9 @@ export function createRenderer(canvas, settings) {
   const sphereGeo = new THREE.SphereGeometry(1, 14, 10); sphereGeo.userData.shared = true;
   const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 16, 1, true); cylGeo.userData.shared = true;
   const boxGeo = new THREE.BoxGeometry(1, 1, 1); boxGeo.userData.shared = true;
-  const glowTex = glowTexture(THREE), discTex = discTexture(THREE);
+  const glowTex = glowTexture(), discTex = discTexture();
   const addMat = (color, opacity = 1, map = null) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, map, fog: false });
+  const decalMat = (color, opacity = 1) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide, fog: false });
   const sprite = (color, size) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); s.scale.setScalar(size); return s; };
 
   function makeFx(f) {
@@ -151,11 +153,11 @@ export function createRenderer(canvas, settings) {
         g.add(s, r, d, sprite(0xffa040, 1)); break;
       }
       case 'slash': {
-        const geo = new THREE.RingGeometry(0.55, 1, 28, 1, -f.arc * Math.PI / 360, f.arc * Math.PI / 180); geo.rotateX(Math.PI / 2);
+        const geo = new THREE.RingGeometry(0.72, 1, 28, 1, -f.arc * Math.PI / 360, f.arc * Math.PI / 180); geo.rotateX(Math.PI / 2);
         const m = new THREE.Mesh(geo, addMat(col, 0.9)); m.name = 'slash'; g.add(m); break;
       }
       case 'blink': { const c = new THREE.Mesh(cylGeo, addMat(col, 0.7)); c.name = 'beam'; g.add(c, sprite(col, 80)); break; }
-      case 'spawn': { const c = new THREE.Mesh(cylGeo, addMat(col, 0.6)); c.name = 'beam'; const r = new THREE.Mesh(ringGeo, addMat(col, 1)); r.name = 'ring'; g.add(c, r, sprite(col, 70)); break; }
+      case 'spawn': { const c = new THREE.Mesh(cylGeo, addMat(col, 0.3)); c.name = 'beam'; const r = new THREE.Mesh(ringGeo, addMat(col, 1)); r.name = 'ring'; g.add(c, r, sprite(col, 70)); break; }
       case 'trail': { g.add(sprite(col, 44)); break; }
       default: break;
     }
@@ -168,7 +170,7 @@ export function createRenderer(canvas, settings) {
     g.position.set(f.x, 1, f.y);
     for (const c of g.children) {
       if (c.material && c.material.opacity !== undefined && c.type === 'Mesh') {
-        const base = c.name === 'disc' ? 0.28 : c.name === 'beam' ? 0.7 : 1;
+        const base = c.name === 'disc' ? 0.28 : c.name === 'beam' ? (f.type === 'spawn' ? 0.35 : 0.7) : 1;
         c.material.opacity = base * op;
       } else if (c.isSprite) c.material.opacity = op;
     }
@@ -185,7 +187,7 @@ export function createRenderer(canvas, settings) {
       }
       case 'slash': g.rotation.y = -f.ang; g.scale.set(f.range, 1, f.range); g.position.y = 18; break;
       case 'blink': for (const c of g.children) { if (c.name === 'beam') { c.scale.set(14 * (1 - k), 90, 14 * (1 - k)); c.position.y = 45; } else if (c.isSprite) c.position.y = 30; } break;
-      case 'spawn': for (const c of g.children) { if (c.name === 'beam') { c.scale.set(16 * (1 - k * 0.5), 110 * ease(k) + 10, 16 * (1 - k * 0.5)); c.position.y = 55 * ease(k); } else if (c.name === 'ring') c.scale.set(32 * (1 - k * 0.6), 1, 32 * (1 - k * 0.6)); else if (c.isSprite) c.position.y = 24; } break;
+      case 'spawn': for (const c of g.children) { if (c.name === 'beam') { c.scale.set(9 * (1 - k * 0.5), 80 * ease(k) + 10, 9 * (1 - k * 0.5)); c.position.y = 40 * ease(k); } else if (c.name === 'ring') c.scale.set(32 * (1 - k * 0.6), 1, 32 * (1 - k * 0.6)); else if (c.isSprite) c.position.y = 24; } break;
       case 'trail': g.position.y = 18; g.scale.setScalar(1 - k * 0.5); break;
       default: break;
     }
@@ -202,9 +204,9 @@ export function createRenderer(canvas, settings) {
       g.add(core, sprite(0xff4a10, 52));
     } else {
       const col = q.team === 'p' ? 0xe8dcc0 : 0x8a6a4a;
-      const shaft = new THREE.Mesh(boxGeo, new THREE.MeshStandardMaterial({ color: col, roughness: 0.7 })); shaft.scale.set(26, 1.6, 1.6);
-      const head = new THREE.Mesh(new THREE.ConeGeometry(2.6, 7, 6), new THREE.MeshStandardMaterial({ color: 0x9aa4ae, metalness: 0.8, roughness: 0.4 })); head.rotation.z = -Math.PI / 2; head.position.x = 15;
-      const fl = new THREE.Mesh(boxGeo, new THREE.MeshStandardMaterial({ color: q.team === 'p' ? 0xc84a3a : 0x3a3a3a })); fl.scale.set(6, 0.6, 5); fl.position.x = -11;
+      const shaft = new THREE.Mesh(boxGeo, std({ color: col, roughness: 0.7 })); shaft.scale.set(26, 1.6, 1.6);
+      const head = new THREE.Mesh(new THREE.ConeGeometry(2.6, 7, 6), std({ color: 0x9aa4ae, metalness: 0.8, roughness: 0.4 })); head.rotation.z = -Math.PI / 2; head.position.x = 15;
+      const fl = new THREE.Mesh(boxGeo, std({ color: q.team === 'p' ? 0xc84a3a : 0x3a3a3a })); fl.scale.set(6, 0.6, 5); fl.position.x = -11;
       g.add(shaft, head, fl);
       if (q.team === 'e') g.add(sprite(0xff7a30, 20));
     }
@@ -215,15 +217,15 @@ export function createRenderer(canvas, settings) {
   // zones
   function makeZone(z) {
     const g = new THREE.Group();
-    const col = z.kind === 'rain' ? 0xc8e060 : z.team === 'p' ? 0xff8a3a : 0xff3a2a;
+    const col = z.kind === 'rain' ? 0xb8d850 : z.team === 'p' ? 0xff7a2a : 0xe82a20;
     if (z.kind === 'line') {
-      const m = new THREE.Mesh(boxGeo, addMat(0xff3020, 0.35)); m.name = 'line'; g.add(m);
+      const m = new THREE.Mesh(boxGeo, decalMat(0xff3020, 0.35)); m.name = 'line'; g.add(m);
     } else {
-      const d = new THREE.Mesh(discGeo, addMat(col, 0.18)); d.name = 'disc'; d.scale.set(z.r, 1, z.r);
-      const r = new THREE.Mesh(ringGeo, addMat(col, 0.9)); r.name = 'ring'; r.scale.set(z.r, 1, z.r);
-      const f = new THREE.Mesh(discGeo, addMat(col, 0.35)); f.name = 'fill';
+      const d = new THREE.Mesh(discGeo, decalMat(col, 0.18)); d.name = 'disc'; d.scale.set(z.r, 1, z.r);
+      const r = new THREE.Mesh(ringGeo, decalMat(col, 0.9)); r.name = 'ring'; r.scale.set(z.r, 1, z.r);
+      const f = new THREE.Mesh(discGeo, decalMat(col, 0.35)); f.name = 'fill';
       g.add(d, r, f);
-      if (z.kind === 'meteor') { const m = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ color: 0x3a2418, emissive: 0xff5a10, emissiveIntensity: 1.6, roughness: 0.8 })); m.scale.setScalar(26); m.name = 'rock'; g.add(m, Object.assign(sprite(0xff7a20, 150), { name: 'mglow' })); }
+      if (z.kind === 'meteor') { const m = new THREE.Mesh(sphereGeo, std({ color: 0x3a2418, emissive: 0xff5a10, emissiveIntensity: 1.6, roughness: 0.8 })); m.scale.setScalar(26); m.name = 'rock'; g.add(m, Object.assign(sprite(0xff7a20, 150), { name: 'mglow' })); }
       if (z.kind === 'rain') {
         for (let i = 0; i < 16; i++) { const a = new THREE.Mesh(boxGeo, new THREE.MeshBasicMaterial({ color: 0xf0e6c0 })); a.scale.set(1.4, 20, 1.4); a.name = 'arr'; a.userData.i = i; a.userData.seed = Math.random() * 10; g.add(a); }
       }
@@ -245,9 +247,9 @@ export function createRenderer(canvas, settings) {
     const fired = z.fired || (z.kind === 'rain' && z.t > z.dur - 0.3);
     const fade = z.kind === 'rain' ? Math.min(1, (z.dur - z.t) * 3, z.t * 4) : fired ? Math.max(0, 1 - (z.t - z.delay) / 0.35) : 1;
     for (const c of g.children) {
-      if (c.name === 'disc') c.material.opacity = (0.15 + 0.12 * k) * fade;
-      else if (c.name === 'ring') c.material.opacity = (0.5 + 0.5 * k) * fade;
-      else if (c.name === 'fill') { c.scale.set(z.r * k, 1, z.r * k); c.material.opacity = 0.4 * fade; }
+      if (c.name === 'disc') c.material.opacity = (0.16 + 0.14 * k) * fade;
+      else if (c.name === 'ring') c.material.opacity = (0.55 + 0.4 * k) * fade;
+      else if (c.name === 'fill') { c.scale.set(z.r * k, 1, z.r * k); c.material.opacity = (z.kind === 'rain' ? 0.12 : 0.32) * fade; }
       else if (c.name === 'rock') {
         const kk = Math.min(1, z.t / z.delay);
         c.visible = !z.fired; c.position.set(-(1 - kk) * 220, 640 * (1 - kk * kk) + 20, -(1 - kk) * 220); c.rotation.x = time * 3;
@@ -266,19 +268,19 @@ export function createRenderer(canvas, settings) {
   function makePickup(pk) {
     const g = new THREE.Group();
     if (pk.kind === 'gold') {
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 1.8, 14), new THREE.MeshStandardMaterial({ color: 0xe8b830, metalness: 0.9, roughness: 0.3, emissive: 0x5a3a00, emissiveIntensity: 0.6 })); m.rotation.x = Math.PI / 2; m.name = 'spin';
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 1.8, 14), std({ color: 0xe8b830, metalness: 0.9, roughness: 0.3, emissive: 0x5a3a00, emissiveIntensity: 0.6 })); m.rotation.x = Math.PI / 2; m.name = 'spin';
       const h = new THREE.Group(); h.add(m); h.name = 'bob'; g.add(h, sprite(0xffc840, 32));
     } else if (pk.kind === 'potion') {
       const h = new THREE.Group(); h.name = 'bob';
-      const fl = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ color: 0xd8304a, emissive: 0x801020, emissiveIntensity: 0.7, roughness: 0.2, metalness: 0.1 })); fl.scale.set(5.5, 6, 5.5);
-      const nk = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 5, 8), new THREE.MeshStandardMaterial({ color: 0xcfd8e0, roughness: 0.2 })); nk.position.y = 7;
-      const cp = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 2.4, 8), new THREE.MeshStandardMaterial({ color: 0x7a4a28 })); cp.position.y = 10.5;
+      const fl = new THREE.Mesh(sphereGeo, std({ color: 0xd8304a, emissive: 0x801020, emissiveIntensity: 0.7, roughness: 0.2, metalness: 0.1 })); fl.scale.set(5.5, 6, 5.5);
+      const nk = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 5, 8), std({ color: 0xcfd8e0, roughness: 0.2 })); nk.position.y = 7;
+      const cp = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 2.4, 8), std({ color: 0x7a4a28 })); cp.position.y = 10.5;
       h.add(fl, nk, cp); g.add(h, sprite(0xff4a6a, 38));
     } else {
-      const rc = new THREE.Color(rarityOf(pk.item.rarity).color);
+      const rc = new THREE.Color(rarityOf(pk.item.rarity).color).convertSRGBToLinear();
       const beam = new THREE.Mesh(cylGeo, addMat(rc, 0.28)); beam.scale.set(7, 90, 7); beam.position.y = 45;
       const h = new THREE.Group(); h.name = 'bob';
-      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(7, 0), new THREE.MeshStandardMaterial({ color: rc, emissive: rc, emissiveIntensity: 0.9, roughness: 0.25, metalness: 0.4 })); gem.name = 'spin';
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(7, 0), std({ color: rc, emissive: rc, emissiveIntensity: 0.9, roughness: 0.25, metalness: 0.4 })); gem.name = 'spin';
       h.add(gem); g.add(beam, h, sprite(rc, 60));
     }
     fxGroup.add(g);
@@ -296,8 +298,9 @@ export function createRenderer(canvas, settings) {
   function layoutCamera() {
     aspect = W / H;
     const fov = camera.fov * Math.PI / 180;
-    const targetW = aspect >= 1 ? Math.min(820, 640 + aspect * 60) : 470;
+    const targetW = aspect >= 1 ? Math.min(700, 540 + aspect * 55) : 440;
     camDist = Math.max(520, Math.min(1500, targetW / (2 * Math.tan(fov / 2) * Math.min(aspect, 1.9))));
+    camDist *= (+new URLSearchParams(location.search).get('dist') || 1);
     camera.aspect = aspect; camera.updateProjectionMatrix();
   }
 
@@ -332,7 +335,7 @@ export function createRenderer(canvas, settings) {
     world.update?.(dt, time, p, camTarget);
 
     // player
-    playerVis.root.position.set(p.x, 0, p.y);
+    playerVis.root.position.set(p.x, world.heightAt(p.x, p.y), p.y);
     playerVis.root.rotation.y = Math.PI / 2 - p.face;
     playerVis.update(p, dt, time, game);
     playerVis.flash(p.hitT > 0.1 && !p.dead);
@@ -343,7 +346,7 @@ export function createRenderer(canvas, settings) {
       seen.add(e.id);
       let v = enemyVis.get(e.id);
       if (!v) { v = createCharacter(e.type, quality); entities.add(v.root); enemyVis.set(e.id, v); }
-      v.root.position.set(e.x, 0, e.y);
+      v.root.position.set(e.x, world.heightAt(e.x, e.y), e.y);
       v.root.rotation.y = Math.PI / 2 - e.face;
       const sp = e.spawnT > 0 ? 1 - e.spawnT / 0.7 : 1;
       v.root.scale.setScalar(0.4 + 0.6 * Math.min(1, sp * 1.3));
@@ -380,7 +383,7 @@ export function createRenderer(canvas, settings) {
         seenK.add(pk);
         let v = pickVis.get(pk);
         if (!v) { v = { g: makePickup(pk) }; pickVis.set(pk, v); }
-        v.g.position.set(pk.x, 0, pk.y);
+        v.g.position.set(pk.x, world.heightAt(pk.x, pk.y), pk.y);
         for (const c of v.g.children) if (c.name === 'bob') { c.position.y = 14 + Math.sin(time * 3 + pk.x) * 3; c.rotation.y = time * 2 + pk.x; }
         const s = Math.min(1, pk.t * 4); v.g.scale.setScalar(s);
       }

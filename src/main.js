@@ -1,6 +1,6 @@
 // Highkeep Road: bootstraps screens, renderer and the main loop.
 import './style.css';
-import { createGame, startStage, update } from './game.js';
+import { createGame, startStage, update, makeEnemy } from './game.js';
 import { loadSave, writeSave, newSave, loadSettings, writeSettings } from './save.js';
 import { createInput } from './input.js';
 import { createOverlay } from './overlay.js';
@@ -110,6 +110,8 @@ function frame(now) {
 
 (async function boot() {
   try {
+    const q = new URLSearchParams(location.search);
+    if (q.has('gallery')) { const { startGallery } = await import('./gallery.js'); startGallery(els.gl, q); return; }
     await initRenderer();
     onResize();
     ui.showTitle();
@@ -120,4 +122,4 @@ function frame(now) {
   }
 })();
 
-window.__hk = { game, input, ui, api, hud, update, get renderer() { return renderer; } };
+window.__hk = { game, input, ui, api, hud, update, makeEnemy, get renderer() { return renderer; } };
