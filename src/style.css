@@ -151,13 +151,15 @@ h3.pick { margin: 22px 0 10px; color: var(--dim); font-size: 14px; letter-spacin
 .bagdetail .btns { justify-content: flex-start; }
 .shop .vendor { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; } .shop .vendor img { width: 64px; height: 64px; background: #1a120b; border: 1px solid var(--line); border-radius: 10px; } .shop p { margin: 4px 0; color: var(--parch); font-size: 13px; }
 
+.tabs-wide { display: none; padding: 0; }
 @media (min-width: 900px) {
-  .tabs .tab-map { display: none; }
+  .tabs-wide { display: flex; }
+  .camp > .tabs { display: none; }
   .camp main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(340px, 1fr); gap: 14px; padding-top: 10px; align-items: start; }
-  .tabs { display: none; }
   .camp main .p-map { border-radius: 10px; }
-  .camp main .side { display: grid; gap: 14px; }
-  .camp main .side .panel { display: block; border-radius: 10px; }
+  .camp main .side { display: block; }
+  .camp main .side .panel { border-radius: 0 0 10px 10px; }
+  .camp main .side .panel:not(.show) { display: none; }
   .mapsvg { max-height: none; }
 }
 @media (max-width: 899px) { .side .panel.show { border-top-left-radius: 0; } .brand small { display: none; } .res { gap: 8px; font-size: 13px; } .camp-top { gap: 6px; } }
@@ -181,3 +183,7 @@ h3.pick { margin: 22px 0 10px; color: var(--dim); font-size: 14px; letter-spacin
   .res .pw { display: none; }
   .logo h1 { font-size: 52px; }
 }
+
+#loading { position: absolute; inset: 0; z-index: 30; background: radial-gradient(ellipse at 50% 40%, #2a1a0e, #0c0806); display: grid; place-content: center; justify-items: center; gap: 14px; font-family: var(--serif); color: var(--parch); letter-spacing: .08em; }
+.spin { width: 38px; height: 38px; border-radius: 50%; border: 3px solid rgba(232, 131, 46, .25); border-top-color: var(--ember2); animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

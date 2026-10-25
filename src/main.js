@@ -33,6 +33,7 @@ const api = {
   toTitle() { stopStage(); persist(); ui.showTitle(); },
   march(id, floor) {
     if (!game.save) return;
+    if (id === 'vault' ? game.save.cleared < 6 : id > game.save.cleared + 1) return;
     ui.hide(); ui.hidePause();
     hud.setClass(game.save.cls);
     els.hud.classList.remove('hidden');
@@ -40,6 +41,12 @@ const api = {
     startStage(game, id, floor);
     renderer.setStage(game);
     onResize();
+  },
+  async marchWithLoading(id, floor) {
+    const el = $('loading');
+    el.classList.remove('hidden');
+    await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 30)));
+    try { api.march(id, floor); } finally { el.classList.add('hidden'); }
   },
   resume() { game.paused = false; ui.hidePause(); },
   quit() { ui.hidePause(); api.toCamp(); },
@@ -64,7 +71,7 @@ input.onPause = () => {
   if (game.mode !== 'stage') return;
   if (game.paused) api.resume(); else { game.paused = true; ui.showPause(settings.gfx); }
 };
-document.addEventListener('visibilitychange', () => { if (document.hidden && game.mode === 'stage' && !game.paused) input.onPause(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) return; persist(); if (game.mode === 'stage' && !game.paused) input.onPause(); });
 addEventListener('pagehide', persist);
 
 function onResize() {
@@ -72,7 +79,7 @@ function onResize() {
   const dprCap = settings.gfx === 'low' ? 1 : 2;
   const dpr = Math.min(devicePixelRatio || 1, dprCap);
   renderer.resize(w, h, dpr);
-  overlay.resize(w, h, Math.min(devicePixelRatio || 1, 2));
+  overlay.resize(w, h, Math.min(devicePixelRatio || 1, settings.gfx === 'low' ? 1.5 : 2));
 }
 addEventListener('resize', onResize);
 
@@ -116,6 +123,7 @@ function frame(now) {
     onResize();
     ui.showTitle();
     requestAnimationFrame(frame);
+    setTimeout(() => renderer.warm?.(), 500);
   } catch (err) {
     console.error(err);
     const f = $('fatal'); f.classList.remove('hidden'); f.textContent = 'Highkeep Road could not start: ' + err.message;

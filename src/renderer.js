@@ -6,7 +6,8 @@ import { rarityOf } from './items.js';
 import { createCharacter } from './art/characters.js';
 import { buildWorld } from './art/world3d.js';
 import { glowTexture, discTexture } from './art/textures.js';
-import { setEnvIntensity, std, lin } from './art/materials.js';
+import { setEnvIntensity, std, lin, Mat } from './art/materials.js';
+import { PM } from './art/props.js';
 
 const TAU = Math.PI * 2;
 const SKY = {
@@ -418,6 +419,13 @@ export function createRenderer(canvas, settings) {
       tmp.set(x, z, y).project(camera);
       if (tmp.z > 1) return null;
       return { x: (tmp.x * 0.5 + 0.5) * W, y: (-tmp.y * 0.5 + 0.5) * H };
+    },
+    // Pre-build textures/materials/sky in small idle slices so the first stage load is quick.
+    warm() {
+      const steps = [() => envFor('fields'), ...Object.values(Mat).map((f) => () => f()), ...Object.values(PM).map((f) => () => { try { f(); } catch (e) { /* optional */ } })];
+      let i = 0;
+      const run = () => { const t = performance.now(); while (i < steps.length && performance.now() - t < 10) steps[i++](); if (i < steps.length) setTimeout(run, 6); };
+      run();
     },
     clear() { gl.clear(); },
     info: () => gl.info,

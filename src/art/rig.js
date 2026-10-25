@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { Mat, flashMat } from './materials.js';
 import { discTexture } from './textures.js';
+import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const geoCache = new Map();
 const G = (key, make) => { if (!geoCache.has(key)) { const g = make(); g.userData.shared = true; geoCache.set(key, g); } return geoCache.get(key); };
@@ -56,20 +57,20 @@ export function buildHumanoid(spec, quality) {
     const thigh = piv(hips, s * 3.9 * b, -0.5, 0);
     mk(limbGeo(13 * ls, 3.6 * b, 2.7 * b, seg), M.thigh, thigh);
     const knee = piv(thigh, 0, -13 * ls, 0);
-    mk(sphGeo(2.7 * b, 8, 6), M.thigh, knee, false);
+    if (hi) mk(sphGeo(2.7 * b, 8, 6), M.thigh, knee, false);
     mk(limbGeo(13 * ls, 2.7 * b, 2.0 * b, seg), M.shin, knee);
     const ankle = piv(knee, 0, -13 * ls, 0);
     const foot = mk(boxGeo(3.8 * b, 3.2, 8), M.boot, ankle); foot.position.set(0, -1.2, 1.9);
     J['thigh' + side] = thigh; J['knee' + side] = knee; J['foot' + side] = foot;
     // arms
     const sh = piv(spine, s * (8.2 * b + 1.8), 14.8, 0);
-    mk(sphGeo(3.2 * b, 8, 6), M.shoulder || M.arm, sh);
+    if (hi || M.shoulder) mk(sphGeo(3.2 * b, 8, 6), M.shoulder || M.arm, sh);
     mk(limbGeo(9.5 * as, 2.7 * b, 2.2 * b, seg), M.arm, sh);
     const elbow = piv(sh, 0, -9.5 * as, 0);
-    mk(sphGeo(2.3 * b, 7, 5), M.arm, elbow, false);
+    if (hi) mk(sphGeo(2.3 * b, 7, 5), M.arm, elbow, false);
     mk(limbGeo(9 * as, 2.25 * b, 1.8 * b, seg), M.fore, elbow);
     const wrist = piv(elbow, 0, -9 * as, 0);
-    mk(sphGeo(2.1 * b, 8, 6), M.hand || M.skin, wrist, hi);
+    mk(sphGeo(2.1 * b, 7, 5), M.hand || M.skin, wrist, hi);
     J['shoulder' + side] = sh; J['elbow' + side] = elbow; J['wrist' + side] = wrist;
   }
   // blob shadow for low quality
@@ -243,4 +244,36 @@ export function createAnimator(rig, cfg) {
     if (ext.update) ext.update(ent, time, mv, dt);
   }
   return { apply, st };
+}
+
+/**
+ * Merge static meshes that share a parent joint and a material into one mesh (cuts draw calls ~2x).
+ * Skips multi-material meshes. Rebuilds rig.meshes so hit-flash keeps working.
+ */
+export function mergeStatics(rig) {
+  const groups = new Set();
+  for (const m of rig.meshes) if (m.parent) groups.add(m.parent);
+  const keep = [];
+  for (const parent of groups) {
+    const byMat = new Map();
+    for (const child of [...parent.children]) {
+      if (!child.isMesh || Array.isArray(child.material) || child.userData.noMerge) { if (child.isMesh) keep.push(child); continue; }
+      if (!byMat.has(child.material)) byMat.set(child.material, []);
+      byMat.get(child.material).push(child);
+    }
+    for (const [mat, list] of byMat) {
+      if (list.length < 2) { keep.push(list[0]); continue; }
+      const geos = list.map((m) => { m.updateMatrix(); const g = m.geometry.clone(); g.applyMatrix4(m.matrix); return g; });
+      const mixed = geos.some((g) => !g.index) && geos.some((g) => g.index);
+      const src = mixed ? geos.map((g) => (g.index ? g.toNonIndexed() : g)) : geos;
+      const merged = BufferGeometryUtils.mergeBufferGeometries(src, false);
+      geos.forEach((g) => g.dispose()); if (mixed) src.forEach((g) => g.dispose());
+      if (!merged) { keep.push(...list); continue; }
+      const mesh = new THREE.Mesh(merged, mat);
+      mesh.castShadow = list.some((m) => m.castShadow); mesh.userData.m = mat;
+      list.forEach((m) => parent.remove(m));
+      parent.add(mesh); keep.push(mesh);
+    }
+  }
+  rig.meshes.length = 0; rig.meshes.push(...keep);
 }

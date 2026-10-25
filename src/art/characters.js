@@ -1,7 +1,7 @@
 // Original character designs built on the humanoid rig. createCharacter(kind, quality) -> { root, update, flash }.
 import * as THREE from 'three';
 import { Mat, flashMat, std } from './materials.js';
-import { buildHumanoid, createAnimator, mount, limbGeo, cylGeo, sphGeo, boxGeo, coneGeo, dome } from './rig.js';
+import { buildHumanoid, createAnimator, mount, limbGeo, cylGeo, sphGeo, boxGeo, coneGeo, dome, mergeStatics } from './rig.js';
 import { glowTexture, Tex } from './textures.js';
 
 const PI = Math.PI;
@@ -414,6 +414,7 @@ export function createCharacter(kind, quality = 'high') {
   if (kind === 'wisp') return wisp(quality);
   const b = BUILD[kind](quality);
   const { rig } = b;
+  mergeStatics(rig);
   const root = rig.root;
   if (b.scale) root.scale.setScalar(b.scale);
   const anim = createAnimator(rig, b.cfg);

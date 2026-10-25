@@ -186,7 +186,7 @@ export function createUI(root, api) {
   function showCamp() {
     state.view = 'camp';
     const s = save();
-    if (state.sel == null || (state.sel !== 'vault' && state.sel > s.cleared + 1)) state.sel = nextStageId(s);
+    if (state.sel == null) state.sel = nextStageId(s);
     const hero = heroStats(s);
     const isWide = wide.matches;
     const tab = state.tab === 'map' && isWide ? 'hero' : state.tab;
@@ -201,10 +201,11 @@ export function createUI(root, api) {
       <nav class="tabs">${tabs.map(([k, n]) => `<button class="${tab === k ? 'on' : ''} ${k === 'map' ? 'tab-map' : ''}" data-a="tab" data-tab="${k}">${n}${k === 'bag' && s.bag.length ? ` <i>${s.bag.length}</i>` : ''}</button>`).join('')}</nav>
       <main>
         <section class="panel p-map ${tab === 'map' || isWide ? 'show' : ''}">
-          ${s.story ? '' : ''}${mapSVG(s)}
+          ${mapSVG(s)}
           <div class="stageinfo">${stageInfo(s, hero)}</div>
         </section>
         <section class="side">
+          <nav class="tabs tabs-wide">${tabs.filter(([k]) => k !== 'map').map(([k, n]) => `<button class="${tab === k ? 'on' : ''}" data-a="tab" data-tab="${k}">${n}${k === 'bag' && s.bag.length ? ` <i>${s.bag.length}</i>` : ''}</button>`).join('')}</nav>
           <div class="panel p-hero ${tab === 'hero' ? 'show' : ''}">${heroPanel(s, hero)}</div>
           <div class="panel p-bag ${tab === 'bag' ? 'show' : ''}">${bagPanel(s)}</div>
           <div class="panel p-shop ${tab === 'shop' ? 'show' : ''}">${shopPanel(s)}</div>
@@ -283,7 +284,7 @@ export function createUI(root, api) {
       case 'floor': state.floor = Math.max(1, Math.min(s.vaultBest + 1, state.floor + +b.dataset.d)); showCamp(); break;
       case 'march': {
         const id = b.dataset.stage === 'vault' ? 'vault' : +b.dataset.stage;
-        api.march(id, id === 'vault' ? +(b.dataset.floor || state.floor) : 0);
+        api.marchWithLoading(id, id === 'vault' ? +(b.dataset.floor || state.floor) : 0);
         break;
       }
       case 'camp': api.toCamp(); break;

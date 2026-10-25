@@ -14,7 +14,6 @@ export function createInput(root) {
   try { if (matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0) setTouch(true); } catch (e) { /* ignore */ }
 
   const kd = (e) => {
-    if (e.repeat && !['Space'].includes(e.code)) { if (!e.code.startsWith('Digit')) { /* keep key state */ } }
     const k = e.code;
     if (k === 'Escape' || k === 'KeyP') { if (!e.repeat) input.onPause(); e.preventDefault(); return; }
     if (!input.enabled) return;
