@@ -224,3 +224,15 @@ export const ARTIFACTS = [
 ];
 export const artValue = (a, lv) => Math.round(a.val * (1 + 0.3 * (lv - 1)) * 10) / 10;
 export const artUpCost = (lv) => ({ gold: Math.round(90 * Math.pow(lv, 1.4)), steel: 2 + lv });
+
+/* ---------- artifact expeditions: scouts walk off on real-time errands ---------- */
+export const EXP_UNLOCK_STAGE = 3;          // clear the Old Toll Bridge to open the Scout Lodge
+export const EXP_SLOTS = 2;
+export const SCOUT_MAX = 5;
+export const scoutCost = (n) => 150 + n * 120;
+export const ROUTES = [
+  { id: 'patrol', name: 'Roadside Patrol', mins: 2, scouts: 1, art: 0.12, steel: [2, 4], gold: [40, 90], blurb: 'A short sweep of the verge.' },
+  { id: 'cairn', name: 'Ruined Cairn', mins: 20, scouts: 2, art: 0.4, steel: [5, 9], gold: [120, 220], blurb: 'Old stones, older things beneath them.' },
+  { id: 'barrow', name: 'Deep Barrow', mins: 90, scouts: 3, art: 0.85, steel: [10, 18], gold: [260, 450], blurb: 'A king\'s barrow. Few come back with empty hands.' },
+];
+export const SCOUT_NAMES = ['Wren', 'Tamsin', 'Corvin', 'Ilse', 'Bram', 'Odalys', 'Hob', 'Sable', 'Rook', 'Maud', 'Fenn', 'Lark'];

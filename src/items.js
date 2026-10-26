@@ -1,7 +1,7 @@
 // Items, hero stat derivation, power score, loot rolls.
 import {
   CLASSES, PER_LEVEL, RARITIES, AFFIXES, AFFIX_KEYS, ARMOR_NAMES, CHARM_NAMES, HEROIC_TITLES, xpToNext, MAX_LEVEL,
-  SETS, SET_BONUS, MAX_PLUS, RESEARCH_MAX, TRAITS, SIGIL_PER, SIGIL_BOONS, ARTIFACTS, artValue,
+  SETS, SET_BONUS, MAX_PLUS, RESEARCH_MAX, TRAITS, SIGIL_PER, SIGIL_BOONS, ARTIFACTS, artValue, ART_MAX, ROUTES, SCOUT_NAMES,
 } from './data.js';
 
 let uidN = 0;
@@ -190,4 +190,31 @@ export function advanceTotals(save) {
 export function traitUnlocked(save, branch, idx) {
   const spent = branch.nodes.reduce((a, n) => a + ((save.traits || {})[n.id] || 0), 0);
   return spent >= idx * 3;
+}
+
+/* ---------- artifacts & expeditions ---------- */
+// Award a random artifact; a duplicate raises it one level. Returns a message.
+export function grantArtifact(save, R = Math.random) {
+  const a = ARTIFACTS[Math.floor(R() * ARTIFACTS.length)];
+  save.artifacts = save.artifacts || {};
+  const own = save.artifacts[a.id];
+  if (!own) { save.artifacts[a.id] = { lv: 1 }; return `New artifact: ${a.name}`; }
+  if (own.lv < ART_MAX) { own.lv++; return `${a.name} rose to level ${own.lv}`; }
+  save.steel = (save.steel || 0) + 4; return `${a.name} is maxed (+4 steel)`;
+}
+export function newScout(R = Math.random) {
+  const w = [50, 32, 14, 4]; let t = R() * 100, rar = 0;
+  for (let i = 0; i < w.length; i++) { t -= w[i]; if (t <= 0) { rar = i; break; } }
+  return { id: uid(), name: SCOUT_NAMES[Math.floor(R() * SCOUT_NAMES.length)], rar };
+}
+export const scoutBonus = (scouts) => scouts.reduce((a, c) => a + 0.05 * (c.rar + 1), 0);
+export function expeditionOdds(route, scouts) { return Math.min(0.97, route.art + scoutBonus(scouts) - 0.05 * scouts.length); }
+export function resolveExpedition(save, ex, R = Math.random) {
+  const route = ROUTES.find((r) => r.id === ex.route);
+  const crew = save.scouts.filter((c) => ex.scouts.includes(c.id));
+  const steel = Math.round(route.steel[0] + R() * (route.steel[1] - route.steel[0]));
+  const gold = Math.round(route.gold[0] + R() * (route.gold[1] - route.gold[0]));
+  save.steel = (save.steel || 0) + steel; save.gold += gold;
+  const found = R() < expeditionOdds(route, crew) ? grantArtifact(save, R) : null;
+  return { steel, gold, found, route: route.name };
 }

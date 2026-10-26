@@ -37,6 +37,9 @@ sort the bag, and buy extra bag slots.
 **Advance tab**: raise skill levels (+10% power, faster cooldown), spend trait points in a three-branch tree, level the
 House Sigil (stat bonuses plus gold/experience boons), and collect/equip artifacts dropped by bosses (duplicates level them).
 
+**Scout Lodge** (Advance → Lodge, opens after stage 3): send scouts on real-time expeditions (they keep running while the
+game is closed) for steel, gold and artifacts; rarer scouts raise the artifact odds.
+
 Graphics can be switched between **Low** and **High** from the pause menu (Low is the default on touch devices:
 no shadow maps, pixel ratio 1, fewer instances and particles).
 

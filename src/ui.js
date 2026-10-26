@@ -2,11 +2,11 @@
 import {
   CLASSES, STAGES, VAULT, SLOTS, SLOT_LABEL, AFFIXES, MAX_POTIONS, POTION_PRICE, BAG_SIZE, BAG_MAX, BAG_EXPAND, bagExpandCost, MAX_PLUS, RESEARCH_MAX, SETS, SET_BONUS, xpToNext, MAX_LEVEL, INTRO_TEXT, ENDING_TEXT, stageById,
   SKILL_MAX, skillMul, skillCdMul, skillUpCost, TRAITS, TRAIT_MAX, traitPoints, traitSpent, TRAIT_RESET_COST, SIGIL_MAX, SIGIL_PER, SIGIL_BOONS, sigilCost,
-  ARTIFACTS, ART_MAX, ART_SLOTS, artValue, artUpCost,
+  ARTIFACTS, ART_MAX, ART_SLOTS, artValue, artUpCost, EXP_UNLOCK_STAGE, EXP_SLOTS, SCOUT_MAX, scoutCost, ROUTES,
 } from './data.js';
 import {
   heroStats, itemTotals, itemSellValue, rarityOf, describeAffix, setCounts, forgeInfo, forgeAttempt, reforgeCost, canReforge, reforgeAffix,
-  dismantleValue, studyValue, researchLevel, researchNeed, rarityIndex, traitUnlocked,
+  dismantleValue, studyValue, researchLevel, researchNeed, rarityIndex, traitUnlocked, newScout, expeditionOdds, resolveExpedition,
 } from './items.js';
 import { icon, slotIcon } from './icons.js';
 
@@ -224,10 +224,37 @@ export function createUI(root, api) {
       <h4>Set research</h4><div class="research">${rs}</div><p class="dim">Each level: +6 health, +2 armor, +1 damage. Steel comes from dismantling gear, brutes and bosses.</p>`;
   }
 
+  const fmtTime = (ms) => { const t = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60; return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}:${String(sec).padStart(2, '0')}`; };
+
+  function expedPanel(s) {
+    if (s.cleared < EXP_UNLOCK_STAGE) return `<p class="dim">The Scout Lodge opens once you have cleared stage ${EXP_UNLOCK_STAGE}: ${esc(STAGES[EXP_UNLOCK_STAGE - 1].name)}.</p>`;
+    const now = Date.now();
+    const busy = new Set(s.expeds.flatMap((e) => e.scouts));
+    const sel = state.exp || (state.exp = { route: 'patrol', crew: [] });
+    sel.crew = sel.crew.filter((id) => s.scouts.some((c) => c.id === id) && !busy.has(id));
+    const route = ROUTES.find((r) => r.id === sel.route);
+    const crewObjs = s.scouts.filter((c) => sel.crew.includes(c.id));
+    const active = s.expeds.map((e, i) => {
+      const r = ROUTES.find((x) => x.id === e.route), done = now >= e.end;
+      return `<div class="advrow"><div><b>${r.name}</b> <small>${e.scouts.length} scout(s)</small><p>${done ? 'Returned, awaiting you.' : `<span data-end="${e.end}">${fmtTime(e.end - now)}</span> remaining`}</p></div><button class="btn sm ${done ? 'primary' : ''}" data-a="exp-collect" data-i="${i}" ${done ? '' : 'disabled'}>Collect</button></div>`;
+    }).join('') || '<p class="dim">No expeditions out.</p>';
+    const scoutRows = s.scouts.map((c) => `<button class="scout ${busy.has(c.id) ? 'busy' : ''} ${sel.crew.includes(c.id) ? 'sel' : ''}" style="--rc:${rarityOf(['common', 'magic', 'rare', 'heroic'][c.rar]).color}" data-a="exp-crew" data-id="${c.id}" ${busy.has(c.id) ? 'disabled' : ''}><b>${esc(c.name)}</b><small>${rarityOf(['common', 'magic', 'rare', 'heroic'][c.rar]).name}${busy.has(c.id) ? ' &middot; away' : ''}</small></button>`).join('');
+    const odds = expeditionOdds(route, crewObjs);
+    const full = s.expeds.length >= EXP_SLOTS;
+    const can = !full && crewObjs.length >= route.scouts && crewObjs.length <= 3;
+    return `<p class="dim">Scouts walk off for real-time errands (even while the game is closed) and come back with steel, gold and sometimes an artifact. Rarer scouts find more.</p>
+      <h4>Out now (${s.expeds.length}/${EXP_SLOTS})</h4>${active}
+      <h4>Routes</h4><div class="routes">${ROUTES.map((r) => `<button class="route ${sel.route === r.id ? 'sel' : ''}" data-a="exp-route" data-id="${r.id}"><b>${r.name}</b><small>${r.mins >= 60 ? `${r.mins / 60}h` : `${r.mins} min`} &middot; ${r.scouts}+ scout${r.scouts > 1 ? 's' : ''}</small></button>`).join('')}</div>
+      <p class="dim">${esc(route.blurb)} Artifact chance with this crew: <b>${Math.round(odds * 100)}%</b></p>
+      <h4>Scouts (${s.scouts.length}/${SCOUT_MAX})</h4><div class="scouts">${scoutRows}</div>
+      <div class="btns"><button class="btn primary" data-a="exp-send" ${can ? '' : 'disabled'}>${full ? 'Expedition slots full' : crewObjs.length < route.scouts ? `Pick ${route.scouts} scout${route.scouts > 1 ? 's' : ''}` : 'Send out'}</button>
+      <button class="btn" data-a="exp-hire" ${s.scouts.length < SCOUT_MAX && s.gold >= scoutCost(s.scouts.length) ? '' : 'disabled'}>${s.scouts.length >= SCOUT_MAX ? 'Lodge is full' : `Hire a scout &middot; ${scoutCost(s.scouts.length)}g`}</button></div>`;
+  }
+
   function advPanel(s) {
     const sub = state.adv || 'skills';
     const c = CLASSES[s.cls];
-    const subs = [['skills', 'Skills'], ['traits', 'Traits'], ['sigil', 'Sigil'], ['arts', 'Artifacts']];
+    const subs = [['skills', 'Skills'], ['traits', 'Traits'], ['sigil', 'Sigil'], ['arts', 'Relics'], ['exped', 'Lodge']];
     const nav = `<div class="subtabs">${subs.map(([k, n]) => `<button class="${sub === k ? 'on' : ''}" data-a="adv-tab" data-t="${k}">${n}</button>`).join('')}</div>`;
     const head = `<div class="forgetop"><span>Steel <b>${s.steel || 0}</b></span><span>Gold <b>${s.gold}</b></span></div>${state.msg2 ? `<div class="msg ok">${esc(state.msg2)}</div>` : ''}`;
     let body = '';
@@ -250,6 +277,8 @@ export function createUI(root, api) {
         <p class="dim">Per level: +${SIGIL_PER.dmgPct}% damage, +${SIGIL_PER.hpPct}% health, +${SIGIL_PER.armor} armor.</p></div></div>
         <ul class="boons">${Object.entries(SIGIL_BOONS).map(([l, b]) => `<li class="${lv >= +l ? 'on' : ''}">Level ${l}: ${b.text}</li>`).join('')}</ul>
         ${lv >= SIGIL_MAX ? '<p class="dim">Your sigil is fully raised.</p>' : `<button class="btn primary" data-a="sigil-up" ${s.gold >= cost.gold && s.steel >= cost.steel ? '' : 'disabled'}>Raise sigil &middot; ${cost.gold}g &middot; ${cost.steel} steel</button>`}`;
+    } else if (sub === 'exped') {
+      body = expedPanel(s);
     } else {
       const slots = (s.artSlots || [null, null, null]).slice(0, ART_SLOTS);
       body = '<p class="dim">Relics from bosses (and rarely brutes). Finding a duplicate raises it one level. Equip up to three.</p><div class="artslots">' + slots.map((id, i) => {
@@ -388,6 +417,21 @@ export function createUI(root, api) {
       }
       case 'camp': api.toCamp(); break;
       case 'menu': api.toTitle(); break;
+      case 'exp-route': state.exp = state.exp || { crew: [] }; state.exp.route = b.dataset.id; showCamp(); break;
+      case 'exp-crew': { const e = state.exp = state.exp || { route: 'patrol', crew: [] }; const i = e.crew.indexOf(b.dataset.id); if (i >= 0) e.crew.splice(i, 1); else if (e.crew.length < 3) e.crew.push(b.dataset.id); showCamp(); break; }
+      case 'exp-send': {
+        const e = state.exp, r = ROUTES.find((x) => x.id === e.route);
+        if (s.expeds.length >= EXP_SLOTS || e.crew.length < r.scouts) break;
+        s.expeds.push({ route: r.id, scouts: [...e.crew], start: Date.now(), end: Date.now() + r.mins * 60000 }); e.crew = [];
+        api.persist(); showCamp(); break;
+      }
+      case 'exp-collect': {
+        const ex = s.expeds[+b.dataset.i]; if (!ex || Date.now() < ex.end) break;
+        const r = resolveExpedition(s, ex); s.expeds.splice(+b.dataset.i, 1);
+        state.msg2 = `${r.route}: +${r.steel} steel, +${r.gold} gold${r.found ? '. ' + r.found + '!' : '.'}`;
+        api.persist(); showCamp(); break;
+      }
+      case 'exp-hire': { const c = scoutCost(s.scouts.length); if (s.scouts.length < SCOUT_MAX && s.gold >= c) { s.gold -= c; const sc = newScout(); s.scouts.push(sc); state.msg2 = `${sc.name} joins the lodge.`; api.persist(); showCamp(); } break; }
       case 'adv-tab': state.adv = b.dataset.t; state.msg2 = ''; showCamp(); break;
       case 'skill-up': {
         const i = +b.dataset.i, lv = s.skillLv[i] || 1, c = skillUpCost(lv);
@@ -498,6 +542,13 @@ export function createUI(root, api) {
       default: break;
     }
   }
+  setInterval(() => {
+    if (state.view !== 'camp') return;
+    const els = root.querySelectorAll('[data-end]');
+    let done = false;
+    els.forEach((el) => { const left = +el.dataset.end - Date.now(); if (left <= 0) done = true; else el.textContent = fmtTime(left); });
+    if (done) showCamp();
+  }, 1000);
   root.addEventListener('click', handle);
   api.pauseEl.addEventListener('click', handle);
   root.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest?.('.node')) { e.preventDefault(); handle(e); } });

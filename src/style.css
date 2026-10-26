@@ -211,3 +211,8 @@ h3.pick { margin: 22px 0 10px; color: var(--dim); font-size: 14px; letter-spacin
 .sigilbox { display: flex; gap: 14px; align-items: center; } .sigilbox img { width: 84px; height: 84px; background: #1a120b; border: 2px solid var(--ember2); border-radius: 12px; padding: 6px; } .sigilbox p { margin: 3px 0; }
 .boons { list-style: none; padding: 0; margin: 10px 0; display: grid; gap: 4px; font-size: 13px; color: var(--dim); } .boons li.on { color: var(--good); } .boons li::before { content: '\25CB  '; } .boons li.on::before { content: '\25CF  '; }
 .artslots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0; } .artslot { min-height: 70px; display: grid; gap: 3px; align-content: center; justify-items: center; text-align: center; background: #17110c; border: 1px dashed var(--line); border-radius: 8px; padding: 6px; font-size: 12px; } .artslot.has { border: 1px solid #7ae0ff; } .artslot small { color: var(--dim); }
+
+.routes, .scouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px; }
+.route, .scout { display: grid; gap: 2px; text-align: left; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; } .route small, .scout small { color: var(--dim); font-size: 11px; }
+.route.sel, .scout.sel { border-color: var(--ember2); box-shadow: 0 0 8px rgba(232, 131, 46, .35); } .scout { border-left: 3px solid var(--rc); } .scout.busy { opacity: .5; }
+.subtabs button { font-size: 11px; }
