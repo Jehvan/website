@@ -63,7 +63,7 @@ class LayoutTests(unittest.TestCase):
 
 class ItemTests(unittest.TestCase):
     def test_starting_power(self):
-        self.assertEqual(I.hero_stats(S.new_save("knight"))["power"], 125)
+        self.assertTrue(120 <= I.hero_stats(S.new_save("knight"))["power"] <= 135)  # starting gear is rolled
 
     def test_forge_never_loses_levels(self):
         it = I.roll_item(random.random, "weapon", 3, "rare", "knight")
