@@ -629,7 +629,7 @@ def _paint_ground(L, quality="high"):
             spot(p, R() * w, R() * h, rmin + R() * (rmax - rmin), col, a * (0.5 + R() * 0.5))
 
     if L.indoor:
-        flag = flagstone("#5a5650" if L.theme == "hall" else "#46454f", L.seed % 7)
+        flag = flagstone("#8c867c" if L.theme == "hall" else "#6c6b7a", L.seed % 7)
         tile = PNMImage()
         flag.store(tile)
         k = int(128 * S * 1.6)
@@ -639,7 +639,7 @@ def _paint_ground(L, quality="high"):
                 small = PNMImage(k, k, 3)
                 small.quickFilterFrom(tile)
                 img.copySubImage(small, tx, ty, 0, 0, min(k, w - tx), min(k, h - ty))
-        blobs((0, 0, 0), 40, 24 * S * 4, 90 * S * 4, 0.11)
+        blobs((0, 0, 0), 40, 24 * S * 4, 90 * S * 4, 0.06)
         if L.theme == "hall":
             cp = PNMImage()
             carpet().store(cp)
