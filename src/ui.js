@@ -1,8 +1,11 @@
 // Screens: title, camp (road map, hero, bag, shop), results, pause. Plain DOM, innerHTML + event delegation.
 import {
-  CLASSES, STAGES, VAULT, SLOTS, SLOT_LABEL, AFFIXES, MAX_POTIONS, POTION_PRICE, BAG_SIZE, xpToNext, MAX_LEVEL, INTRO_TEXT, ENDING_TEXT, stageById,
+  CLASSES, STAGES, VAULT, SLOTS, SLOT_LABEL, AFFIXES, MAX_POTIONS, POTION_PRICE, BAG_SIZE, BAG_MAX, BAG_EXPAND, bagExpandCost, MAX_PLUS, RESEARCH_MAX, SETS, SET_BONUS, xpToNext, MAX_LEVEL, INTRO_TEXT, ENDING_TEXT, stageById,
 } from './data.js';
-import { heroStats, itemTotals, itemSellValue, rarityOf, describeAffix } from './items.js';
+import {
+  heroStats, itemTotals, itemSellValue, rarityOf, describeAffix, setCounts, forgeInfo, forgeAttempt, reforgeCost, canReforge, reforgeAffix,
+  dismantleValue, studyValue, researchLevel, researchNeed, rarityIndex,
+} from './items.js';
 import { icon, slotIcon } from './icons.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -118,7 +121,7 @@ export function createUI(root, api) {
   function itemTile(it, extra = '') {
     if (!it) return `<div class="tile empty ${extra}"></div>`;
     const r = rarityOf(it.rarity);
-    return `<div class="tile ${extra}" style="--rc:${r.color}"><img src="${icon(slotIcon(it), 48)}" alt=""><i>${it.ilvl}</i></div>`;
+    return `<div class="tile ${extra}" style="--rc:${r.color}"><img src="${icon(slotIcon(it), 48)}" alt=""><i>${it.ilvl}</i>${it.plus ? `<u>+${it.plus}</u>` : ''}${it.set != null ? '<b class="setpip"></b>' : ''}${it.lock ? '<em class="lockpip">&#9679;</em>' : ''}</div>`;
   }
 
   function itemCard(it, compareTo, s) {
@@ -126,9 +129,9 @@ export function createUI(root, api) {
     const r = rarityOf(it.rarity);
     const tot = itemTotals(it), cur = itemTotals(compareTo);
     const lines = [];
-    if (it.slot === 'weapon') lines.push(`<div class="base">${fmt(it.base)} Damage</div>`);
-    if (it.slot === 'armor') lines.push(`<div class="base">${fmt(it.base)} Armor</div>`);
-    for (const a of it.aff) lines.push(`<div class="aff">${esc(describeAffix(a))}</div>`);
+    if (it.slot === 'weapon') lines.push(`<div class="base">${fmt(tot.damage)} Damage</div>`);
+    if (it.slot === 'armor') lines.push(`<div class="base">${fmt(tot.armor)} Armor</div>`);
+    for (const a of it.aff) lines.push(`<div class="aff">${esc(describeAffix({ k: a.k, v: Math.round(a.v * (1 + 0.1 * (it.plus || 0)) * 100) / 100 }))}</div>`);
     let cmp = '';
     if (compareTo !== undefined && compareTo !== it) {
       const rows = [];
@@ -140,7 +143,14 @@ export function createUI(root, api) {
       const pNow = heroStats(s).power, pNew = heroStats(s, { ...s.equip, [it.slot]: it }).power;
       cmp = `<div class="cmp"><h5>${compareTo ? 'vs equipped ' + esc(compareTo.name) : 'vs empty slot'}</h5>${rows.join('') || '<span>No change</span>'}<div class="pw ${pNew > pNow ? 'up' : pNew < pNow ? 'dn' : ''}">Power ${pNow} &rarr; ${pNew} (${pNew - pNow >= 0 ? '+' : ''}${pNew - pNow})</div></div>`;
     }
-    return `<div class="icard" style="--rc:${r.color}"><h4>${esc(it.name)}</h4><div class="sub">${r.name} ${esc(it.kind)} &middot; ${SLOT_LABEL[it.slot]} &middot; ilvl ${it.ilvl}</div>${lines.join('')}${cmp}</div>`;
+    let setBlock = '';
+    if (it.set != null) {
+      const have = setCounts(s.equip)[it.set] || 0, t = 1 + 0.35 * it.set;
+      const b2 = SET_BONUS[2](t), b3 = SET_BONUS[3](t);
+      const fm = (b) => Object.entries(b).map(([k, v]) => `+${v} ${AFFIXES[k] ? AFFIXES[k].label : k}`).join(', ');
+      setBlock = `<div class="setblock"><b>${esc(SETS[it.set].name)} Set (${have}/3 worn)</b><div class="${have >= 2 ? 'on' : ''}">(2) ${fm(b2)}</div><div class="${have >= 3 ? 'on' : ''}">(3) ${fm(b3)}</div></div>`;
+    }
+    return `<div class="icard" style="--rc:${r.color}"><h4>${esc(it.name)}${it.plus ? ` <span class="plus">+${it.plus}</span>` : ''}</h4><div class="sub">${r.name} ${esc(it.kind)} &middot; ${SLOT_LABEL[it.slot]} &middot; ilvl ${it.ilvl}${it.plus ? ` &middot; forged +${it.plus}` : ''}</div>${lines.join('')}${setBlock}${cmp}</div>`;
   }
 
   function heroPanel(s, hero) {
@@ -154,22 +164,62 @@ export function createUI(root, api) {
     const it = s.equip[sl];
     return `<div class="eslot ${it ? '' : 'none'}" ${it ? `data-a="eq-inspect" data-slot="${sl}"` : ''}>${itemTile(it)}<div><small>${SLOT_LABEL[sl]}</small><b style="color:${it ? rarityOf(it.rarity).color : 'inherit'}">${it ? esc(it.name) : 'Empty'}</b></div></div>`;
   }).join('')}</div>
-      <div id="eq-detail">${state.eqSel && s.equip[state.eqSel] ? itemCard(s.equip[state.eqSel]) + `<button class="btn" data-a="unequip" data-slot="${state.eqSel}">Unequip</button>` : ''}</div>
+      <div id="eq-detail">${state.eqSel && s.equip[state.eqSel] ? itemCard(s.equip[state.eqSel], undefined, s) + `<button class="btn" data-a="unequip" data-slot="${state.eqSel}">Unequip</button>` : ''}</div>
       <h4>Skills</h4>
       <ul class="skills">${c.skills.map((k) => `<li class="${s.level < k.unlock ? 'lock' : ''}"><img src="${icon(k.id, 40)}" alt=""><div><b>${k.name}</b> <small>${s.level < k.unlock ? 'Unlocks at Lv ' + k.unlock : `${k.cost} MP &middot; ${k.cd}s`}</small><p>${esc(k.desc)}</p></div></li>`).join('')}</ul>`;
   }
 
   function bagPanel(s) {
     const cells = [];
-    for (let i = 0; i < BAG_SIZE; i++) {
+    const size = s.bagSize || BAG_SIZE;
+    for (let i = 0; i < size; i++) {
       const it = s.bag[i];
       cells.push(it ? `<button class="slot ${state.bagSel === it.id ? 'sel' : ''}" data-a="bag-sel" data-id="${it.id}">${itemTile(it)}</button>` : '<div class="slot"><div class="tile empty"></div></div>');
     }
     const it = s.bag.find((x) => x.id === state.bagSel);
-    const sellCommon = s.bag.filter((x) => x.rarity === 'common');
-    return `<div class="bagtop"><span>Bag ${s.bag.length} / ${BAG_SIZE}</span><button class="btn sm" data-a="sell-common" ${sellCommon.length ? '' : 'disabled'}>Sell all Common (${sellCommon.reduce((a, b) => a + itemSellValue(b), 0)}g)</button></div>
+    const sellCommon = s.bag.filter((x) => x.rarity === 'common' && !x.lock);
+    return `<div class="bagtop"><span>Bag ${s.bag.length} / ${size}</span><span class="bagbtns"><button class="btn sm" data-a="sort">Sort</button><button class="btn sm" data-a="sell-common" ${sellCommon.length ? '' : 'disabled'}>Sell Common (${sellCommon.reduce((a, b) => a + itemSellValue(b), 0)}g)</button></span></div>
       <div class="baggrid">${cells.join('')}</div>
-      <div class="bagdetail">${it ? itemCard(it, s.equip[it.slot], s) + `<div class="btns"><button class="btn primary" data-a="equip" data-id="${it.id}">Equip</button><button class="btn" data-a="sell" data-id="${it.id}">Sell ${itemSellValue(it)}g</button></div>` : '<p class="dim">Select an item to compare it with what you are wearing.</p>'}</div>`;
+      <div class="bagdetail">${it ? itemCard(it, s.equip[it.slot], s) + `<div class="btns"><button class="btn primary" data-a="equip" data-id="${it.id}">Equip</button><button class="btn" data-a="forge-open" data-id="${it.id}">Forge</button><button class="btn" data-a="lock" data-id="${it.id}">${it.lock ? 'Unlock' : 'Lock'}</button></div><div class="btns"><button class="btn sm" data-a="dismantle" data-id="${it.id}" ${it.lock ? 'disabled' : ''}>Dismantle +${dismantleValue(it)} steel</button><button class="btn sm" data-a="sell" data-id="${it.id}" ${it.lock ? 'disabled' : ''}>Sell ${itemSellValue(it)}g</button></div>` : '<p class="dim">Select an item to compare it with what you are wearing. Lock items you want to keep.</p>'}</div>`;
+  }
+
+  const findItem = (s, id) => {
+    for (const sl of SLOTS) if (s.equip[sl] && s.equip[sl].id === id) return { it: s.equip[sl], where: sl };
+    const i = s.bag.findIndex((x) => x.id === id);
+    return i >= 0 ? { it: s.bag[i], where: 'bag', i } : null;
+  };
+
+  function forgePanel(s) {
+    const all = [...SLOTS.map((sl) => s.equip[sl]).filter(Boolean), ...s.bag];
+    if (!state.forgeSel || !findItem(s, state.forgeSel)) state.forgeSel = all[0] ? all[0].id : null;
+    const f = state.forgeSel ? findItem(s, state.forgeSel) : null;
+    const it = f && f.it;
+    const picker = all.map((x) => `<button class="slot ${state.forgeSel === x.id ? 'sel' : ''}" data-a="forge-sel" data-id="${x.id}">${itemTile(x, f && f.where !== 'bag' && x === s.equip[f.where] ? '' : '')}</button>`).join('');
+    let body = '<p class="dim">Nothing to forge yet. Gear drops from the road.</p>';
+    if (it) {
+      const info = forgeInfo(it);
+      const gold = info ? info.gold : 0;
+      body = itemCard(it, undefined, s) + `<div class="fp"><span>Forge pity</span><div class="xpbar"><i style="width:${it.fp || 0}%"></i></div><small>${it.fp || 0} / 100 &middot; at 100 the next forge cannot fail</small></div>`;
+      body += info ? `<div class="forgebox"><h4>Forge +${(it.plus || 0) + 1}</h4><p>Raises every stat on the item by 10%. Success <b>${Math.round(info.chance * 100)}%</b>${info.guaranteed ? ' (guaranteed)' : ''}. A failure never lowers the item.</p>
+        <button class="btn primary" data-a="forge" ${s.gold >= gold && s.steel >= info.steel ? '' : 'disabled'}>Forge &middot; ${gold}g &middot; ${info.steel} steel</button></div>` : `<div class="forgebox"><h4>Fully forged (+${MAX_PLUS})</h4></div>`;
+      if (canReforge(it)) {
+        const rc = reforgeCost(it);
+        const fodder = s.bag.find((x) => x.id !== it.id && !x.lock && x.slot === it.slot && x.rarity === it.rarity);
+        state.reforgeIdx = Math.min(state.reforgeIdx || 0, it.aff.length - 1);
+        body += `<div class="forgebox"><h4>Reforge</h4><p>Replace one effect with a new random one. Consumes a spare unlocked ${rarityOf(it.rarity).name} ${SLOT_LABEL[it.slot]} from your bag.</p>
+          <div class="affpick">${it.aff.map((a, i) => `<button class="btn sm ${state.reforgeIdx === i ? 'on' : ''}" data-a="reforge-idx" data-i="${i}">${esc(describeAffix(a))}</button>`).join('')}</div>
+          <button class="btn" data-a="reforge" ${fodder && s.gold >= rc.gold && s.steel >= rc.steel ? '' : 'disabled'}>${fodder ? `Reforge &middot; ${rc.gold}g &middot; ${rc.steel} steel` : 'Needs a matching spare item'}</button></div>`;
+      }
+      if (f.where === 'bag' && it.set != null) body += `<div class="forgebox"><h4>Set research</h4><p>Study this item to add ${studyValue(it)} research to <b>${esc(SETS[it.set].name)}</b>. Researched sets give permanent bonuses even when not worn.</p><button class="btn" data-a="study" ${it.lock ? 'disabled' : ''}>Study (consumes item)</button></div>`;
+    }
+    const rs = SETS.map((st) => {
+      const xp = (s.research || {})[st.id] || 0, L = researchLevel(xp), need = researchNeed(L + 1), prev = researchNeed(L);
+      return `<div class="rrow"><span>${esc(st.name)}</span><b>Lv ${L}${L >= RESEARCH_MAX ? ' (max)' : ''}</b><div class="xpbar"><i style="width:${L >= RESEARCH_MAX ? 100 : Math.round(100 * (xp - prev) / (need - prev))}%"></i></div></div>`;
+    }).join('');
+    return `<div class="forgetop"><span>Steel <b>${s.steel || 0}</b></span><span>Gold <b>${s.gold}</b></span></div>
+      ${state.msg ? `<div class="msg ${state.msgOk ? 'ok' : 'bad'}">${esc(state.msg)}</div>` : ''}
+      <div class="baggrid forgepick">${picker}</div>${body}
+      <h4>Set research</h4><div class="research">${rs}</div><p class="dim">Each level: +6 health, +2 armor, +1 damage. Steel comes from dismantling gear, brutes and bosses.</p>`;
   }
 
   function shopPanel(s) {
@@ -180,7 +230,9 @@ export function createUI(root, api) {
       <div class="row">Potions <b>${s.potions} / ${MAX_POTIONS}</b></div>
       <div class="btns"><button class="btn primary" data-a="buy" data-n="1" ${can ? '' : 'disabled'}>Buy 1 &middot; ${POTION_PRICE}g</button>
       <button class="btn" data-a="buy" data-n="${toFull}" ${s.gold >= POTION_PRICE && toFull > 1 ? '' : 'disabled'}>Fill up${toFull > 1 ? ` (${toFull}) &middot; ${toFull * POTION_PRICE}g` : ''}</button></div>
-      <p class="dim">Gold: ${s.gold}. Sell spare equipment from the Bag.</p></div>`;
+      <div class="row">Bag slots <b>${s.bagSize || BAG_SIZE} / ${BAG_MAX}</b></div>
+      <div class="btns"><button class="btn" data-a="expand" ${(s.bagSize || BAG_SIZE) < BAG_MAX && s.gold >= bagExpandCost(s.bagSize || BAG_SIZE) ? '' : 'disabled'}>${(s.bagSize || BAG_SIZE) >= BAG_MAX ? 'Bag is full size' : `+${BAG_EXPAND} slots &middot; ${bagExpandCost(s.bagSize || BAG_SIZE)}g`}</button></div>
+      <p class="dim">Gold: ${s.gold}. Sell or dismantle spare equipment from the Bag.</p></div>`;
   }
 
   function showCamp() {
@@ -191,11 +243,11 @@ export function createUI(root, api) {
     const isWide = wide.matches;
     const tab = state.tab === 'map' && isWide ? 'hero' : state.tab;
     root.className = 'screen camp';
-    const tabs = [['map', 'Road'], ['hero', 'Hero'], ['bag', `Bag`], ['shop', 'Shop']];
+    const tabs = [['map', 'Road'], ['hero', 'Hero'], ['bag', `Bag`], ['forge', 'Forge'], ['shop', 'Shop']];
     root.innerHTML = `
       <header class="camp-top">
         <div class="brand">Highkeep Road <small>Camp</small></div>
-        <div class="res"><span class="gold"><img src="${icon('coin', 32)}" alt="">${s.gold}</span><span class="pots"><img src="${icon('potion', 32)}" alt="">${s.potions}/${MAX_POTIONS}</span><span class="pw">Power <b>${hero.power}</b></span></div>
+        <div class="res"><span class="gold"><img src="${icon('coin', 32)}" alt="">${s.gold}</span><span class="pots"><img src="${icon('potion', 32)}" alt="">${s.potions}/${MAX_POTIONS}</span><span class="steel" title="Forging steel">&#9874; ${s.steel || 0}</span><span class="pw">Power <b>${hero.power}</b></span></div>
         <button class="btn sm" data-a="menu">Menu</button>
       </header>
       <nav class="tabs">${tabs.map(([k, n]) => `<button class="${tab === k ? 'on' : ''} ${k === 'map' ? 'tab-map' : ''}" data-a="tab" data-tab="${k}">${n}${k === 'bag' && s.bag.length ? ` <i>${s.bag.length}</i>` : ''}</button>`).join('')}</nav>
@@ -208,6 +260,7 @@ export function createUI(root, api) {
           <nav class="tabs tabs-wide">${tabs.filter(([k]) => k !== 'map').map(([k, n]) => `<button class="${tab === k ? 'on' : ''}" data-a="tab" data-tab="${k}">${n}${k === 'bag' && s.bag.length ? ` <i>${s.bag.length}</i>` : ''}</button>`).join('')}</nav>
           <div class="panel p-hero ${tab === 'hero' ? 'show' : ''}">${heroPanel(s, hero)}</div>
           <div class="panel p-bag ${tab === 'bag' ? 'show' : ''}">${bagPanel(s)}</div>
+          <div class="panel p-forge ${tab === 'forge' ? 'show' : ''}">${forgePanel(s)}</div>
           <div class="panel p-shop ${tab === 'shop' ? 'show' : ''}">${shopPanel(s)}</div>
         </section>
       </main>`;
@@ -225,7 +278,7 @@ export function createUI(root, api) {
       <h2>${won ? (isVault ? `Floor ${stage.floor} cleared` : ending ? 'The Heir is Free' : 'Victory') : 'Defeated'}</h2>
       <p class="sub">${esc(stage.name)}</p>
       ${ending ? `<p class="story">${esc(ENDING_TEXT)}</p>` : ''}
-      <div class="rstats"><div><b>${run.kills}</b><span>Foes slain</span></div><div><b>${run.xp}</b><span>XP</span></div><div><b>${run.gold}</b><span>Gold</span></div>${won && run.bonus ? `<div><b>+${run.bonus}</b><span>Clear bonus</span></div>` : ''}</div>
+      <div class="rstats"><div><b>${run.kills}</b><span>Foes slain</span></div><div><b>${run.xp}</b><span>XP</span></div><div><b>${run.gold}</b><span>Gold</span></div>${run.steel ? `<div><b>${run.steel}</b><span>Steel</span></div>` : ''}${won && run.bonus ? `<div><b>+${run.bonus}</b><span>Clear bonus</span></div>` : ''}</div>
       ${run.levels ? `<div class="lvlup">Level ${run.startLevel} &rarr; ${s.level}</div>` : ''}
       ${isVault ? `<div class="lvlup">Best floor ${s.vaultBest}</div>` : ''}
       ${run.items.length ? `<h4>Loot</h4><div class="loot">${run.items.map((it) => `<div class="lootitem" style="--rc:${rarityOf(it.rarity).color}"><img src="${icon(slotIcon(it), 36)}" alt=""><span>${esc(it.name)}</span></div>`).join('')}</div>` : ''}
@@ -289,6 +342,51 @@ export function createUI(root, api) {
       }
       case 'camp': api.toCamp(); break;
       case 'menu': api.toTitle(); break;
+      case 'forge-open': state.forgeSel = b.dataset.id; state.tab = 'forge'; state.msg = ''; showCamp(); break;
+      case 'forge-sel': state.forgeSel = b.dataset.id; state.msg = ''; showCamp(); break;
+      case 'forge': {
+        const f = findItem(s, state.forgeSel); if (!f) break;
+        const info = forgeInfo(f.it); if (!info || s.gold < info.gold || s.steel < info.steel) break;
+        s.gold -= info.gold; s.steel -= info.steel;
+        const ok = forgeAttempt(f.it);
+        state.msg = ok ? `Forged to +${f.it.plus}!` : `The forge failed (pity ${f.it.fp}/100). Nothing was lost but materials.`; state.msgOk = ok;
+        api.persist(); showCamp(); break;
+      }
+      case 'reforge-idx': state.reforgeIdx = +b.dataset.i; showCamp(); break;
+      case 'reforge': {
+        const f = findItem(s, state.forgeSel); if (!f || !canReforge(f.it)) break;
+        const rc = reforgeCost(f.it);
+        const fi = s.bag.findIndex((x) => x.id !== f.it.id && !x.lock && x.slot === f.it.slot && x.rarity === f.it.rarity);
+        if (fi < 0 || s.gold < rc.gold || s.steel < rc.steel) break;
+        s.bag.splice(fi, 1); s.gold -= rc.gold; s.steel -= rc.steel;
+        reforgeAffix(f.it, state.reforgeIdx || 0);
+        state.msg = 'Reforged: ' + describeAffix(f.it.aff[state.reforgeIdx || 0]); state.msgOk = true;
+        api.persist(); showCamp(); break;
+      }
+      case 'study': {
+        const f = findItem(s, state.forgeSel); if (!f || f.where !== 'bag' || f.it.set == null || f.it.lock) break;
+        s.research = s.research || {}; const before = researchLevel(s.research[f.it.set] || 0);
+        s.research[f.it.set] = (s.research[f.it.set] || 0) + studyValue(f.it);
+        s.bag.splice(f.i, 1); state.forgeSel = null;
+        const after = researchLevel(s.research[f.it.set]);
+        state.msg = after > before ? `${SETS[f.it.set].name} research reached level ${after}!` : 'Research gained.'; state.msgOk = true;
+        api.persist(); showCamp(); break;
+      }
+      case 'dismantle': {
+        const i = s.bag.findIndex((x) => x.id === b.dataset.id); if (i < 0 || s.bag[i].lock) break;
+        s.steel = (s.steel || 0) + dismantleValue(s.bag[i]); s.bag.splice(i, 1); state.bagSel = null;
+        api.persist(); showCamp(); break;
+      }
+      case 'lock': { const f = findItem(s, b.dataset.id); if (f) { f.it.lock = !f.it.lock; api.persist(); showCamp(); } break; }
+      case 'sort': {
+        s.bag.sort((a, c) => rarityIndex(c) - rarityIndex(a) || (c.plus || 0) - (a.plus || 0) || c.ilvl - a.ilvl || a.slot.localeCompare(c.slot));
+        api.persist(); showCamp(); break;
+      }
+      case 'expand': {
+        const size = s.bagSize || BAG_SIZE, cost = bagExpandCost(size);
+        if (size < BAG_MAX && s.gold >= cost) { s.gold -= cost; s.bagSize = Math.min(BAG_MAX, size + BAG_EXPAND); api.persist(); showCamp(); }
+        break;
+      }
       case 'bag-sel': state.bagSel = b.dataset.id; showCamp(); break;
       case 'eq-inspect': state.eqSel = state.eqSel === b.dataset.slot ? null : b.dataset.slot; showCamp(); break;
       case 'equip': {
@@ -303,18 +401,19 @@ export function createUI(root, api) {
       }
       case 'unequip': {
         const sl = b.dataset.slot;
-        if (!s.equip[sl] || s.bag.length >= BAG_SIZE) break;
+        if (!s.equip[sl] || s.bag.length >= (s.bagSize || BAG_SIZE)) break;
         s.bag.push(s.equip[sl]); s.equip[sl] = null; state.eqSel = null;
         api.persist(); showCamp(); break;
       }
       case 'sell': {
         const idx = s.bag.findIndex((x) => x.id === b.dataset.id);
         if (idx < 0) break;
+        if (s.bag[idx].lock) break;
         s.gold += itemSellValue(s.bag[idx]); s.bag.splice(idx, 1); state.bagSel = null;
         api.persist(); showCamp(); break;
       }
       case 'sell-common': {
-        let g = 0; s.bag = s.bag.filter((x) => { if (x.rarity === 'common') { g += itemSellValue(x); return false; } return true; });
+        let g = 0; s.bag = s.bag.filter((x) => { if (x.rarity === 'common' && !x.lock) { g += itemSellValue(x); return false; } return true; });
         s.gold += g; state.bagSel = null; api.persist(); showCamp(); break;
       }
       case 'buy': {

@@ -5,7 +5,24 @@ export const WORLD_H = 1150;
 export const MAX_LEVEL = 30;
 export const MAX_POTIONS = 5;
 export const POTION_PRICE = 25;
-export const BAG_SIZE = 24;
+export const BAG_SIZE = 24;       // starting bag slots
+export const BAG_MAX = 60;
+export const BAG_EXPAND = 6;      // slots per purchase
+export const bagExpandCost = (size) => 120 + (size - BAG_SIZE) * 25;
+export const MAX_PLUS = 10;       // forge levels
+export const RESEARCH_MAX = 10;
+
+// Armour/weapon sets (original). One per stage tier; Magic+ items may roll one.
+export const SETS = [
+  { id: 0, name: 'Millbrook Militia' }, { id: 1, name: 'Hollow Stalker' }, { id: 2, name: 'Toll Warden' },
+  { id: 3, name: 'Marsh Wraith' }, { id: 4, name: 'Highkeep Guard' }, { id: 5, name: 'Throne Breaker' },
+];
+// bonus totals for wearing 2 / 3 pieces of a set, scaled by set tier t = 1 + 0.35*setId
+export const SET_BONUS = {
+  2: (t) => ({ armor: Math.round(6 * t), hp: Math.round(18 * t) }),
+  3: (t) => ({ damage: Math.round(3 * t * 10) / 10, crit: 3 }),
+};
+export const SET_BONUS_TEXT = { 2: '+Armor, +Health', 3: '+Damage, +3% Crit' };
 
 export const xpToNext = (L) => Math.round(30 * Math.pow(L, 1.55) + 30);
 

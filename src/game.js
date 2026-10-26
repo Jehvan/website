@@ -1,5 +1,5 @@
 // Game state and simulation: stage flow, player, enemies, combat, loot.
-import { CLASSES, ENEMIES, STAGES, stageById, MAX_POTIONS, BAG_SIZE, WORLD_W } from './data.js';
+import { CLASSES, ENEMIES, STAGES, stageById, MAX_POTIONS, WORLD_W } from './data.js';
 import { buildLayout, resolveMove, pointBlocked, rng } from './world.js';
 import { heroStats, rollItem, rollRarity, addXp, armorMul, rarityOf } from './items.js';
 
@@ -58,7 +58,7 @@ export function startStage(game, id, floor = 0) {
   game.L = L; game.mode = 'stage'; game.paused = false;
   game.enemies = []; game.proj = []; game.zones = []; game.pickups = []; game.fx = []; game.texts = []; game.spawnQ = [];
   game.shake = 0; game.time = 0;
-  game.run = { kills: 0, gold: 0, xp: 0, items: [], levels: 0, potions: 0, startLevel: game.save.level, firstClear: false };
+  game.run = { kills: 0, steel: 0, gold: 0, xp: 0, items: [], levels: 0, potions: 0, startLevel: game.save.level, firstClear: false };
   game.p = {
     x: L.start.x, y: L.start.y, r: 12, face: 0, hp: hero.maxHp, mp: hero.maxMp, vx: 0, vy: 0,
     atkCd: 0, atkT: -1, atkDur: 0.3, hitT: 0, invuln: 0, grace: 0, dash: null, spin: null,
@@ -214,6 +214,8 @@ function killEnemy(game, e, silent = false) {
   const lv = addXp(game.save, xp);
   floatText(game, e.x, e.y - e.r - 16, `+${xp} xp`, '#9ad0ff', 11);
   if (lv) onLevelUp(game, lv);
+  const steelN = def.boss ? 8 + Math.floor(d.s) : e.type === 'brute' ? 2 : R() < 0.1 ? 1 : 0;
+  if (steelN) { game.save.steel = (game.save.steel || 0) + steelN; run.steel += steelN; floatText(game, e.x, e.y - e.r - 28, `+${steelN} steel`, '#9fb4c8', 12); }
   const gold = Math.round(rand(def.gold[0], def.gold[1]) * d.gold);
   game.pickups.push({ kind: 'gold', amount: gold, x: e.x, y: e.y, vx: rand(-50, 50), vy: rand(-50, 50), t: 0 });
   if (def.boss) {
@@ -250,7 +252,7 @@ function collect(game, pk) {
     else { save.potions++; run.potions++; floatText(game, game.p.x, game.p.y - 20, 'Potion', '#ff8fa0', 13); }
     return true;
   }
-  if (save.bag.length >= BAG_SIZE) {
+  if (save.bag.length >= (save.bagSize || 24)) {
     const v = Math.round(5 * pk.item.ilvl * rarityOf(pk.item.rarity).sell);
     save.gold += v; run.gold += v;
     floatText(game, game.p.x, game.p.y - 20, `Bag full: sold for ${v}g`, '#ffd24a', 11);

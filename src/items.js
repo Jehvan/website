@@ -1,6 +1,7 @@
 // Items, hero stat derivation, power score, loot rolls.
 import {
   CLASSES, PER_LEVEL, RARITIES, AFFIXES, AFFIX_KEYS, ARMOR_NAMES, CHARM_NAMES, HEROIC_TITLES, xpToNext, MAX_LEVEL,
+  SETS, SET_BONUS, MAX_PLUS, RESEARCH_MAX,
 } from './data.js';
 
 let uidN = 0;
@@ -36,7 +37,9 @@ export function rollItem(R, { slot, ilvl, rarity, cls }) {
   else if (rarity === 'magic') name = `${AFFIXES[aff[0].k].name[0]} ${kind}`;
   else if (rarity === 'rare') name = `${AFFIXES[aff[0].k].name[0]} ${kind} ${AFFIXES[aff[1].k].name[1]}`;
   else name = `${pick(HEROIC_TITLES, R)}'s ${kind}`;
-  return { id: uid(), slot, rarity, name, kind, ilvl, base, aff, cls: slot === 'weapon' ? cls : null };
+  const setChance = { common: 0, magic: 0.3, rare: 0.85, heroic: 1 }[rarity];
+  const set = R() < setChance ? Math.max(0, Math.min(SETS.length - 1, Math.round(ilvl - 1 + (R() < 0.3 ? -1 : 0)))) : null;
+  return { id: uid(), slot, rarity, name, kind, ilvl, base, aff, cls: slot === 'weapon' ? cls : null, set, plus: 0, fp: 0, lock: false };
 }
 
 export function rollRarity(R, bonus = 0) {
@@ -56,6 +59,8 @@ export function startingGear(cls) {
   };
 }
 
+export const forgeMul = (it) => 1 + 0.1 * (it.plus || 0);
+
 export function itemSellValue(it) {
   return Math.max(3, Math.round(7 * it.ilvl * rarityOf(it.rarity).sell));
 }
@@ -63,9 +68,10 @@ export function itemSellValue(it) {
 export function itemTotals(it) {
   const t = { hp: 0, mp: 0, damage: 0, armor: 0, crit: 0, speed: 0, regen: 0 };
   if (!it) return t;
-  if (it.slot === 'weapon') t.damage += it.base;
-  if (it.slot === 'armor') t.armor += it.base;
-  for (const a of it.aff) t[a.k] += a.v;
+  const m = forgeMul(it);
+  if (it.slot === 'weapon') t.damage += it.base * m;
+  if (it.slot === 'armor') t.armor += it.base * m;
+  for (const a of it.aff) t[a.k] += a.v * m;
   return t;
 }
 
@@ -78,6 +84,8 @@ export function heroStats(save, equipOverride) {
     const t = itemTotals(eq[slot]);
     for (const k in g) g[k] += t[k];
   }
+  for (const [k, v] of Object.entries(setBonusTotals(eq))) g[k] += v;
+  for (const [k, v] of Object.entries(researchTotals(save))) g[k] += v;
   const s = {
     maxHp: Math.round(c.hp + PER_LEVEL.hp * (L - 1) + g.hp),
     maxMp: Math.round(c.mp + PER_LEVEL.mp * (L - 1) + g.mp),
@@ -111,3 +119,53 @@ export function addXp(save, amount) {
 }
 
 export function describeAffix(a) { return AFFIXES[a.k].fmt(a.v); }
+
+/* ---------- sets, research ---------- */
+export function setCounts(eq) {
+  const c = {};
+  for (const sl of ['weapon', 'armor', 'charm']) { const it = eq[sl]; if (it && it.set != null) c[it.set] = (c[it.set] || 0) + 1; }
+  return c;
+}
+export function setBonusTotals(eq) {
+  const out = {};
+  for (const [id, n] of Object.entries(setCounts(eq))) {
+    const t = 1 + 0.35 * id;
+    for (const need of [2, 3]) if (n >= need) for (const [k, v] of Object.entries(SET_BONUS[need](t))) out[k] = (out[k] || 0) + v;
+  }
+  return out;
+}
+export const researchLevel = (xp) => Math.min(RESEARCH_MAX, Math.floor(Math.sqrt((xp || 0) / 25)));
+export const researchNeed = (lv) => lv * lv * 25;
+// Researched sets grant their bonus whether or not the set is worn.
+export function researchTotals(save) {
+  const out = { armor: 0, damage: 0, hp: 0 };
+  for (const xp of Object.values(save.research || {})) { const L = researchLevel(xp); out.armor += 2 * L; out.damage += 1 * L; out.hp += 6 * L; }
+  return out;
+}
+export const studyValue = (it) => Math.round(10 * rarityOf(it.rarity).sell * it.ilvl) + (it.plus || 0) * 6;
+
+/* ---------- forge / reforge / dismantle ---------- */
+export const FORGE_CHANCE = [1, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2];
+export function forgeInfo(it) {
+  const plus = it.plus || 0;
+  if (plus >= MAX_PLUS) return null;
+  const guaranteed = (it.fp || 0) >= 100;
+  return { chance: guaranteed ? 1 : FORGE_CHANCE[plus], guaranteed, gold: Math.round(25 * (plus + 1) * (1 + it.ilvl * 0.5)), steel: 1 + plus + (rarityIndex(it) >= 2 ? 1 : 0) };
+}
+export const rarityIndex = (it) => RARITIES.findIndex((r) => r.id === it.rarity);
+export function forgeAttempt(it, R = Math.random) {
+  const info = forgeInfo(it);
+  if (R() < info.chance) { it.plus = (it.plus || 0) + 1; it.fp = 0; return true; }
+  it.fp = Math.min(100, (it.fp || 0) + 20 + Math.floor(R() * 10)); // failure never lowers the item; builds towards a sure success
+  return false;
+}
+export const reforgeCost = (it) => ({ gold: 40 * it.ilvl + 20 * rarityIndex(it) * it.ilvl, steel: 2 + rarityIndex(it) });
+export const canReforge = (it) => rarityIndex(it) >= 1 && it.aff.length > 0;
+// Re-roll one affix, taking a fresh random stat (never one the item already has).
+export function reforgeAffix(it, idx, R = Math.random) {
+  const have = it.aff.map((a) => a.k);
+  const pool = AFFIX_KEYS.filter((k) => !have.includes(k) && !(it.slot === 'weapon' && k === 'armor'));
+  const key = pool[Math.floor(R() * pool.length)];
+  it.aff[idx] = rollAffix(key, it.ilvl, R);
+}
+export const dismantleValue = (it) => Math.max(1, Math.round([1, 2, 4, 8][rarityIndex(it)] * (1 + it.ilvl * 0.35)) + (it.plus || 0));

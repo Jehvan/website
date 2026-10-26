@@ -14,7 +14,7 @@ export function newSave(cls) {
   return {
     v: 1, cls, level: 1, xp: 0, gold: 60, potions: 3,
     equip: startingGear(cls), bag: [],
-    cleared: 0, vaultBest: 0, story: false,
+    cleared: 0, vaultBest: 0, story: false, steel: 6, research: {}, bagSize: 24,
   };
 }
 
@@ -24,6 +24,9 @@ export function loadSave() {
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (!s || s.v !== 1 || !s.cls) return null;
+    // migrate saves from before gear progression
+    s.steel = s.steel ?? 0; s.research = s.research || {}; s.bagSize = s.bagSize || 24;
+    for (const it of [...s.bag, ...Object.values(s.equip)]) if (it) { it.plus = it.plus || 0; it.fp = it.fp || 0; it.lock = !!it.lock; if (it.set === undefined) it.set = null; }
     return s;
   } catch (e) { return null; }
 }

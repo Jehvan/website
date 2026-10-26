@@ -187,3 +187,20 @@ h3.pick { margin: 22px 0 10px; color: var(--dim); font-size: 14px; letter-spacin
 #loading { position: absolute; inset: 0; z-index: 30; background: radial-gradient(ellipse at 50% 40%, #2a1a0e, #0c0806); display: grid; place-content: center; justify-items: center; gap: 14px; font-family: var(--serif); color: var(--parch); letter-spacing: .08em; }
 .spin { width: 38px; height: 38px; border-radius: 50%; border: 3px solid rgba(232, 131, 46, .25); border-top-color: var(--ember2); animation: spin .9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* gear progression */
+.tile u { position: absolute; left: 2px; top: 0; font: 700 10px var(--sans); text-decoration: none; color: #ffe38a; text-shadow: 0 1px 2px #000; }
+.setpip { position: absolute; right: 3px; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: #5ae0a8; box-shadow: 0 0 5px #5ae0a8; }
+.lockpip { position: absolute; left: 3px; bottom: 1px; font-size: 9px; color: #fff; font-style: normal; text-shadow: 0 0 3px #000; }
+.plus { color: #ffe38a; font-size: .85em; }
+.setblock { margin-top: 6px; font-size: 12px; color: var(--dim); border-top: 1px dashed var(--line); padding-top: 5px; } .setblock b { color: #5ae0a8; display: block; } .setblock .on { color: #9af0c8; }
+.bagbtns { display: flex; gap: 6px; }
+.forgetop { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 8px; } .forgetop b { color: var(--ember2); }
+.forgepick { margin-bottom: 8px; max-height: 170px; overflow: auto; }
+.forgebox { margin-top: 10px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; } .forgebox h4 { margin: 0 0 4px; } .forgebox p { margin: 4px 0 8px; font-size: 13px; color: var(--parch); }
+.affpick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.fp { margin-top: 8px; font-size: 12px; color: var(--dim); }
+.msg { padding: 8px 10px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; } .msg.ok { background: rgba(80, 160, 90, .2); border: 1px solid var(--good); } .msg.bad { background: rgba(200, 80, 60, .18); border: 1px solid var(--bad); }
+.research { display: grid; gap: 6px; } .rrow { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font-size: 13px; } .rrow .xpbar { grid-column: 1 / -1; margin: 0; height: 5px; }
+.res .steel { color: #9fb4c8; }
+.tabs button { font-size: 13px; padding: 9px 2px; }

@@ -29,6 +29,11 @@ Title → pick a class (or continue) → Camp (road map, hero, bag with compare-
 victory/defeat → Camp. Clear all six stages to free the heir and unlock **The Deep Vaults** (endless floors, a warlord
 every fifth floor, best floor tracked). Progress is saved to `localStorage`.
 
+**Gear progression** (Forge tab in camp): forge items to +10 (each level +10% to every stat; a failure never lowers the
+item but builds pity until the next forge is guaranteed), reforge an effect using a spare matching item, dismantle gear
+into forging steel, study set items for permanent set research, wear 2/3 pieces of a set for set bonuses, lock items,
+sort the bag, and buy extra bag slots.
+
 Graphics can be switched between **Low** and **High** from the pause menu (Low is the default on touch devices:
 no shadow maps, pixel ratio 1, fewer instances and particles).
 
