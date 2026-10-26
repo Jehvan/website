@@ -1,7 +1,7 @@
 // Items, hero stat derivation, power score, loot rolls.
 import {
   CLASSES, PER_LEVEL, RARITIES, AFFIXES, AFFIX_KEYS, ARMOR_NAMES, CHARM_NAMES, HEROIC_TITLES, xpToNext, MAX_LEVEL,
-  SETS, SET_BONUS, MAX_PLUS, RESEARCH_MAX,
+  SETS, SET_BONUS, MAX_PLUS, RESEARCH_MAX, TRAITS, SIGIL_PER, SIGIL_BOONS, ARTIFACTS, artValue,
 } from './data.js';
 
 let uidN = 0;
@@ -86,16 +86,20 @@ export function heroStats(save, equipOverride) {
   }
   for (const [k, v] of Object.entries(setBonusTotals(eq))) g[k] += v;
   for (const [k, v] of Object.entries(researchTotals(save))) g[k] += v;
+  const x = advanceTotals(save);
+  for (const k of ['hp', 'mp', 'damage', 'armor', 'crit', 'regen']) g[k] += x[k];
+  g.speed += x.speed;
   const s = {
-    maxHp: Math.round(c.hp + PER_LEVEL.hp * (L - 1) + g.hp),
+    maxHp: Math.round((c.hp + PER_LEVEL.hp * (L - 1) + g.hp) * (1 + x.hpPct / 100)),
     maxMp: Math.round(c.mp + PER_LEVEL.mp * (L - 1) + g.mp),
-    damage: round(c.damage + PER_LEVEL.damage * (L - 1) + g.damage, 1),
+    damage: round((c.damage + PER_LEVEL.damage * (L - 1) + g.damage) * (1 + x.dmgPct / 100), 1),
     armor: Math.round(g.armor),
     crit: round(5 + g.crit, 1),
     speed: round(c.speed * (1 + g.speed / 100), 1),
     speedPct: g.speed,
     regen: round(c.manaRegen + g.regen, 2),
   };
+  s.cdr = x.cdr; s.goldPct = x.goldPct; s.xpPct = x.xpPct;
   s.power = powerOf(s);
   return s;
 }
@@ -169,3 +173,21 @@ export function reforgeAffix(it, idx, R = Math.random) {
   it.aff[idx] = rollAffix(key, it.ilvl, R);
 }
 export const dismantleValue = (it) => Math.max(1, Math.round([1, 2, 4, 8][rarityIndex(it)] * (1 + it.ilvl * 0.35)) + (it.plus || 0));
+
+/* ---------- traits, sigil, artifacts ---------- */
+export function advanceTotals(save) {
+  const t = { hp: 0, mp: 0, damage: 0, armor: 0, crit: 0, speed: 0, regen: 0, dmgPct: 0, hpPct: 0, cdr: 0, goldPct: 0, xpPct: 0 };
+  for (const br of TRAITS) for (const n of br.nodes) t[n.stat] += n.per * ((save.traits || {})[n.id] || 0);
+  const sl = save.sigil || 0;
+  for (const [k, v] of Object.entries(SIGIL_PER)) t[k] += v * sl;
+  for (const [lv, b] of Object.entries(SIGIL_BOONS)) if (sl >= +lv) { t.goldPct += b.goldPct || 0; t.xpPct += b.xpPct || 0; }
+  for (const id of save.artSlots || []) {
+    const a = ARTIFACTS.find((x) => x.id === id), own = id && (save.artifacts || {})[id];
+    if (a && own) t[a.stat] += artValue(a, own.lv);
+  }
+  return t;
+}
+export function traitUnlocked(save, branch, idx) {
+  const spent = branch.nodes.reduce((a, n) => a + ((save.traits || {})[n.id] || 0), 0);
+  return spent >= idx * 3;
+}

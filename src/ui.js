@@ -1,10 +1,12 @@
 // Screens: title, camp (road map, hero, bag, shop), results, pause. Plain DOM, innerHTML + event delegation.
 import {
   CLASSES, STAGES, VAULT, SLOTS, SLOT_LABEL, AFFIXES, MAX_POTIONS, POTION_PRICE, BAG_SIZE, BAG_MAX, BAG_EXPAND, bagExpandCost, MAX_PLUS, RESEARCH_MAX, SETS, SET_BONUS, xpToNext, MAX_LEVEL, INTRO_TEXT, ENDING_TEXT, stageById,
+  SKILL_MAX, skillMul, skillCdMul, skillUpCost, TRAITS, TRAIT_MAX, traitPoints, traitSpent, TRAIT_RESET_COST, SIGIL_MAX, SIGIL_PER, SIGIL_BOONS, sigilCost,
+  ARTIFACTS, ART_MAX, ART_SLOTS, artValue, artUpCost,
 } from './data.js';
 import {
   heroStats, itemTotals, itemSellValue, rarityOf, describeAffix, setCounts, forgeInfo, forgeAttempt, reforgeCost, canReforge, reforgeAffix,
-  dismantleValue, studyValue, researchLevel, researchNeed, rarityIndex,
+  dismantleValue, studyValue, researchLevel, researchNeed, rarityIndex, traitUnlocked,
 } from './items.js';
 import { icon, slotIcon } from './icons.js';
 
@@ -222,6 +224,49 @@ export function createUI(root, api) {
       <h4>Set research</h4><div class="research">${rs}</div><p class="dim">Each level: +6 health, +2 armor, +1 damage. Steel comes from dismantling gear, brutes and bosses.</p>`;
   }
 
+  function advPanel(s) {
+    const sub = state.adv || 'skills';
+    const c = CLASSES[s.cls];
+    const subs = [['skills', 'Skills'], ['traits', 'Traits'], ['sigil', 'Sigil'], ['arts', 'Artifacts']];
+    const nav = `<div class="subtabs">${subs.map(([k, n]) => `<button class="${sub === k ? 'on' : ''}" data-a="adv-tab" data-t="${k}">${n}</button>`).join('')}</div>`;
+    const head = `<div class="forgetop"><span>Steel <b>${s.steel || 0}</b></span><span>Gold <b>${s.gold}</b></span></div>${state.msg2 ? `<div class="msg ok">${esc(state.msg2)}</div>` : ''}`;
+    let body = '';
+    if (sub === 'skills') {
+      body = '<p class="dim">Each level: +10% skill power and 3% faster cooldown. Skills must be unlocked by hero level first.</p>' + c.skills.map((k, i) => {
+        const lv = (s.skillLv || [1, 1, 1])[i] || 1, locked = s.level < k.unlock, cost = skillUpCost(lv);
+        return `<div class="advrow ${locked ? 'lock' : ''}"><img src="${icon(k.id, 40)}" alt=""><div><b>${k.name}</b> <small>Lv ${lv}/${SKILL_MAX} &middot; power x${skillMul(lv).toFixed(1)} &middot; cooldown ${(k.cd * skillCdMul(lv)).toFixed(1)}s</small><p>${esc(k.desc)}</p></div>
+          ${locked ? `<small>Lv ${k.unlock}</small>` : lv >= SKILL_MAX ? '<small>Max</small>' : `<button class="btn sm" data-a="skill-up" data-i="${i}" ${s.gold >= cost.gold && s.steel >= cost.steel ? '' : 'disabled'}>${cost.gold}g ${cost.steel}&#9874;</button>`}</div>`;
+      }).join('');
+    } else if (sub === 'traits') {
+      const left = traitPoints(s) - traitSpent(s);
+      body = `<div class="forgetop"><span>Trait points <b>${left}</b></span><button class="btn sm" data-a="trait-reset" ${traitSpent(s) ? '' : 'disabled'}>Reset ${TRAIT_RESET_COST(s)}g</button></div><p class="dim">One point per hero level after the first. Each deeper node needs 3 points spent above it.</p>` +
+        TRAITS.map((br) => `<h4>${br.name}</h4><div class="traitrow">${br.nodes.map((n, i) => {
+          const rank = (s.traits || {})[n.id] || 0, open = traitUnlocked(s, br, i);
+          return `<button class="trait ${open ? '' : 'lock'} ${rank ? 'has' : ''}" data-a="trait-up" data-id="${n.id}" ${open && left > 0 && rank < TRAIT_MAX ? '' : 'disabled'}><b>${n.name}</b><small>${n.text}</small><span>${rank}/${TRAIT_MAX}</span></button>`;
+        }).join('')}</div>`).join('');
+    } else if (sub === 'sigil') {
+      const lv = s.sigil || 0, cost = sigilCost(lv);
+      body = `<div class="sigilbox"><img src="${icon(s.cls, 96)}" alt=""><div><h3>House Sigil</h3><p>Level <b>${lv}</b> / ${SIGIL_MAX}</p>
+        <p class="dim">Per level: +${SIGIL_PER.dmgPct}% damage, +${SIGIL_PER.hpPct}% health, +${SIGIL_PER.armor} armor.</p></div></div>
+        <ul class="boons">${Object.entries(SIGIL_BOONS).map(([l, b]) => `<li class="${lv >= +l ? 'on' : ''}">Level ${l}: ${b.text}</li>`).join('')}</ul>
+        ${lv >= SIGIL_MAX ? '<p class="dim">Your sigil is fully raised.</p>' : `<button class="btn primary" data-a="sigil-up" ${s.gold >= cost.gold && s.steel >= cost.steel ? '' : 'disabled'}>Raise sigil &middot; ${cost.gold}g &middot; ${cost.steel} steel</button>`}`;
+    } else {
+      const slots = (s.artSlots || [null, null, null]).slice(0, ART_SLOTS);
+      body = '<p class="dim">Relics from bosses (and rarely brutes). Finding a duplicate raises it one level. Equip up to three.</p><div class="artslots">' + slots.map((id, i) => {
+        const a = ARTIFACTS.find((x) => x.id === id);
+        return `<div class="artslot ${a ? 'has' : ''}">${a ? `<b>${a.name}</b><small>+${artValue(a, s.artifacts[id].lv)}${a.text}</small><button class="btn sm" data-a="art-unequip" data-i="${i}">Remove</button>` : '<small>Empty slot</small>'}</div>`;
+      }).join('') + '</div>' + ARTIFACTS.map((a) => {
+        const own = (s.artifacts || {})[a.id];
+        if (!own) return `<div class="advrow lock"><img src="${icon('charm', 40)}" alt=""><div><b>???</b><p>Not yet found</p></div></div>`;
+        const cost = artUpCost(own.lv), worn = (s.artSlots || []).includes(a.id);
+        return `<div class="advrow"><img src="${icon('charm', 40)}" alt=""><div><b>${a.name}</b> <small>Lv ${own.lv}/${ART_MAX}</small><p>+${artValue(a, own.lv)}${a.text}</p></div><span class="advbtns">
+          <button class="btn sm" data-a="art-equip" data-id="${a.id}" ${worn ? 'disabled' : ''}>${worn ? 'Worn' : 'Equip'}</button>
+          ${own.lv < ART_MAX ? `<button class="btn sm" data-a="art-up" data-id="${a.id}" ${s.gold >= cost.gold && s.steel >= cost.steel ? '' : 'disabled'}>${cost.gold}g ${cost.steel}&#9874;</button>` : ''}</span></div>`;
+      }).join('');
+    }
+    return head + nav + body;
+  }
+
   function shopPanel(s) {
     const full = s.potions >= MAX_POTIONS;
     const can = s.gold >= POTION_PRICE && !full;
@@ -243,7 +288,7 @@ export function createUI(root, api) {
     const isWide = wide.matches;
     const tab = state.tab === 'map' && isWide ? 'hero' : state.tab;
     root.className = 'screen camp';
-    const tabs = [['map', 'Road'], ['hero', 'Hero'], ['bag', `Bag`], ['forge', 'Forge'], ['shop', 'Shop']];
+    const tabs = [['map', 'Road'], ['hero', 'Hero'], ['bag', `Bag`], ['forge', 'Forge'], ['adv', 'Advance'], ['shop', 'Shop']];
     root.innerHTML = `
       <header class="camp-top">
         <div class="brand">Highkeep Road <small>Camp</small></div>
@@ -261,6 +306,7 @@ export function createUI(root, api) {
           <div class="panel p-hero ${tab === 'hero' ? 'show' : ''}">${heroPanel(s, hero)}</div>
           <div class="panel p-bag ${tab === 'bag' ? 'show' : ''}">${bagPanel(s)}</div>
           <div class="panel p-forge ${tab === 'forge' ? 'show' : ''}">${forgePanel(s)}</div>
+          <div class="panel p-adv ${tab === 'adv' ? 'show' : ''}">${advPanel(s)}</div>
           <div class="panel p-shop ${tab === 'shop' ? 'show' : ''}">${shopPanel(s)}</div>
         </section>
       </main>`;
@@ -282,7 +328,7 @@ export function createUI(root, api) {
       ${run.levels ? `<div class="lvlup">Level ${run.startLevel} &rarr; ${s.level}</div>` : ''}
       ${isVault ? `<div class="lvlup">Best floor ${s.vaultBest}</div>` : ''}
       ${run.items.length ? `<h4>Loot</h4><div class="loot">${run.items.map((it) => `<div class="lootitem" style="--rc:${rarityOf(it.rarity).color}"><img src="${icon(slotIcon(it), 36)}" alt=""><span>${esc(it.name)}</span></div>`).join('')}</div>` : ''}
-      ${run.potions ? `<p class="dim">Potions found: ${run.potions}</p>` : ''}
+      ${run.potions ? `<p class="dim">Potions found: ${run.potions}</p>` : ''}${run.artifacts ? `<p class="lvlup">Artifact: ${run.artifacts.map(esc).join(', ')}</p>` : ''}
       <div class="btns">
         ${won && isVault ? `<button class="btn primary big" data-a="march" data-stage="vault" data-floor="${stage.floor + 1}">Descend to floor ${stage.floor + 1}</button>` : ''}
         ${!won ? `<button class="btn primary big" data-a="march" data-stage="${stage.id}" data-floor="${stage.floor || 1}">Try again</button>` : ''}
@@ -342,6 +388,31 @@ export function createUI(root, api) {
       }
       case 'camp': api.toCamp(); break;
       case 'menu': api.toTitle(); break;
+      case 'adv-tab': state.adv = b.dataset.t; state.msg2 = ''; showCamp(); break;
+      case 'skill-up': {
+        const i = +b.dataset.i, lv = s.skillLv[i] || 1, c = skillUpCost(lv);
+        if (lv >= SKILL_MAX || s.gold < c.gold || s.steel < c.steel) break;
+        s.gold -= c.gold; s.steel -= c.steel; s.skillLv[i] = lv + 1; api.persist(); showCamp(); break;
+      }
+      case 'trait-up': {
+        const br = TRAITS.find((t) => t.nodes.some((n) => n.id === b.dataset.id)); const idx = br.nodes.findIndex((n) => n.id === b.dataset.id);
+        const rank = s.traits[b.dataset.id] || 0;
+        if (!traitUnlocked(s, br, idx) || rank >= TRAIT_MAX || traitSpent(s) >= traitPoints(s)) break;
+        s.traits[b.dataset.id] = rank + 1; api.persist(); showCamp(); break;
+      }
+      case 'trait-reset': { const c = TRAIT_RESET_COST(s); if (s.gold >= c) { s.gold -= c; s.traits = {}; state.msg2 = 'Traits reset.'; api.persist(); showCamp(); } break; }
+      case 'sigil-up': {
+        const lv = s.sigil || 0, c = sigilCost(lv);
+        if (lv >= SIGIL_MAX || s.gold < c.gold || s.steel < c.steel) break;
+        s.gold -= c.gold; s.steel -= c.steel; s.sigil = lv + 1; api.persist(); showCamp(); break;
+      }
+      case 'art-equip': { const i = s.artSlots.findIndex((x) => !x); const slot = i >= 0 ? i : 0; s.artSlots[slot] = b.dataset.id; api.persist(); showCamp(); break; }
+      case 'art-unequip': s.artSlots[+b.dataset.i] = null; api.persist(); showCamp(); break;
+      case 'art-up': {
+        const own = s.artifacts[b.dataset.id]; if (!own || own.lv >= ART_MAX) break;
+        const c = artUpCost(own.lv); if (s.gold < c.gold || s.steel < c.steel) break;
+        s.gold -= c.gold; s.steel -= c.steel; own.lv++; api.persist(); showCamp(); break;
+      }
       case 'forge-open': state.forgeSel = b.dataset.id; state.tab = 'forge'; state.msg = ''; showCamp(); break;
       case 'forge-sel': state.forgeSel = b.dataset.id; state.msg = ''; showCamp(); break;
       case 'forge': {

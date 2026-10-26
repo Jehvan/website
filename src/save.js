@@ -15,6 +15,7 @@ export function newSave(cls) {
     v: 1, cls, level: 1, xp: 0, gold: 60, potions: 3,
     equip: startingGear(cls), bag: [],
     cleared: 0, vaultBest: 0, story: false, steel: 6, research: {}, bagSize: 24,
+    skillLv: [1, 1, 1], traits: {}, sigil: 0, artifacts: {}, artSlots: [null, null, null],
   };
 }
 
@@ -26,6 +27,7 @@ export function loadSave() {
     if (!s || s.v !== 1 || !s.cls) return null;
     // migrate saves from before gear progression
     s.steel = s.steel ?? 0; s.research = s.research || {}; s.bagSize = s.bagSize || 24;
+    s.skillLv = s.skillLv || [1, 1, 1]; s.traits = s.traits || {}; s.sigil = s.sigil || 0; s.artifacts = s.artifacts || {}; s.artSlots = s.artSlots || [null, null, null];
     for (const it of [...s.bag, ...Object.values(s.equip)]) if (it) { it.plus = it.plus || 0; it.fp = it.fp || 0; it.lock = !!it.lock; if (it.set === undefined) it.set = null; }
     return s;
   } catch (e) { return null; }

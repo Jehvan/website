@@ -170,3 +170,57 @@ export const ENDING_TEXT =
 export const INTRO_TEXT =
   'The king rode east and never returned. The Ashen Warband holds the road from Millbrook to Highkeep, ' +
   'and the heir is held in the Throne Hall. Fight down the road and free the heir.';
+
+/* ---------- advancement systems ---------- */
+export const SKILL_MAX = 10;
+export const skillMul = (lv) => 1 + 0.1 * (lv - 1);
+export const skillCdMul = (lv) => 1 - 0.03 * (lv - 1);
+export const skillUpCost = (lv) => ({ gold: Math.round(70 * Math.pow(lv, 1.5)), steel: lv });
+
+// Trait tree: 3 branches x 4 nodes. 1 point per hero level after the first. A node needs 3 points spent per node above it in its branch.
+export const TRAIT_MAX = 5;
+export const TRAITS = [
+  { id: 'might', name: 'Path of Might', nodes: [
+    { id: 'm1', name: 'Honed Edge', stat: 'dmgPct', per: 2, text: '+2% damage' },
+    { id: 'm2', name: 'Killing Eye', stat: 'crit', per: 1.5, text: '+1.5% crit' },
+    { id: 'm3', name: 'Heavy Hand', stat: 'damage', per: 1.2, text: '+1.2 damage' },
+    { id: 'm4', name: 'Executioner', stat: 'dmgPct', per: 2.5, text: '+2.5% damage' },
+  ] },
+  { id: 'guard', name: 'Path of the Warden', nodes: [
+    { id: 'g1', name: 'Thick Skin', stat: 'armor', per: 2, text: '+2 armor' },
+    { id: 'g2', name: 'Vital Spark', stat: 'hpPct', per: 2, text: '+2% health' },
+    { id: 'g3', name: 'Iron Will', stat: 'hp', per: 12, text: '+12 health' },
+    { id: 'g4', name: 'Bulwark', stat: 'armor', per: 3, text: '+3 armor' },
+  ] },
+  { id: 'swift', name: 'Path of the Road', nodes: [
+    { id: 's1', name: 'Fleet Foot', stat: 'speed', per: 1.5, text: '+1.5% speed' },
+    { id: 's2', name: 'Deep Well', stat: 'mp', per: 8, text: '+8 mana' },
+    { id: 's3', name: 'Flowing Mana', stat: 'regen', per: 0.3, text: '+0.3 mana/s' },
+    { id: 's4', name: 'Quick Study', stat: 'cdr', per: 2, text: '-2% cooldowns' },
+  ] },
+];
+export const traitPoints = (save) => Math.max(0, save.level - 1);
+export const traitSpent = (save) => Object.values(save.traits || {}).reduce((a, b) => a + b, 0);
+export const TRAIT_RESET_COST = (save) => 100 + save.level * 20;
+
+// House Sigil: levels up with gold + steel; boons at 3 / 6 / 9.
+export const SIGIL_MAX = 10;
+export const SIGIL_PER = { dmgPct: 1.5, hpPct: 2, armor: 1 };
+export const SIGIL_BOONS = { 3: { goldPct: 5, text: '+5% gold' }, 6: { xpPct: 8, text: '+8% experience' }, 9: { goldPct: 10, xpPct: 5, text: '+10% gold, +5% experience' } };
+export const sigilCost = (lv) => ({ gold: Math.round(150 * Math.pow(lv + 1, 1.5)), steel: lv + 2 });
+
+// Artifacts: relics from bosses (and rarely brutes). A duplicate raises the relic one level. 3 slots.
+export const ART_MAX = 10;
+export const ART_SLOTS = 3;
+export const ARTIFACTS = [
+  { id: 'compass', name: 'Ember Compass', stat: 'speed', val: 4, text: '% speed' },
+  { id: 'seal', name: 'Kingsmark Seal', stat: 'hpPct', val: 4, text: '% health' },
+  { id: 'ring', name: 'Ashen Ring', stat: 'armor', val: 6, text: ' armor' },
+  { id: 'chalice', name: 'Hollow Chalice', stat: 'regen', val: 0.8, text: ' mana/s' },
+  { id: 'die', name: "Tollkeeper's Die", stat: 'crit', val: 3, text: '% crit' },
+  { id: 'horn', name: 'Marsh Horn', stat: 'dmgPct', val: 3, text: '% damage' },
+  { id: 'lantern', name: 'Wraith Lantern', stat: 'mp', val: 20, text: ' mana' },
+  { id: 'crown', name: 'Broken Crown', stat: 'cdr', val: 4, text: '% faster cooldowns' },
+];
+export const artValue = (a, lv) => Math.round(a.val * (1 + 0.3 * (lv - 1)) * 10) / 10;
+export const artUpCost = (lv) => ({ gold: Math.round(90 * Math.pow(lv, 1.4)), steel: 2 + lv });

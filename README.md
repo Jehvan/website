@@ -34,6 +34,9 @@ item but builds pity until the next forge is guaranteed), reforge an effect usin
 into forging steel, study set items for permanent set research, wear 2/3 pieces of a set for set bonuses, lock items,
 sort the bag, and buy extra bag slots.
 
+**Advance tab**: raise skill levels (+10% power, faster cooldown), spend trait points in a three-branch tree, level the
+House Sigil (stat bonuses plus gold/experience boons), and collect/equip artifacts dropped by bosses (duplicates level them).
+
 Graphics can be switched between **Low** and **High** from the pause menu (Low is the default on touch devices:
 no shadow maps, pixel ratio 1, fewer instances and particles).
 

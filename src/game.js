@@ -1,5 +1,5 @@
 // Game state and simulation: stage flow, player, enemies, combat, loot.
-import { CLASSES, ENEMIES, STAGES, stageById, MAX_POTIONS, WORLD_W } from './data.js';
+import { CLASSES, ENEMIES, STAGES, stageById, MAX_POTIONS, WORLD_W, skillMul, skillCdMul, ARTIFACTS, ART_MAX } from './data.js';
 import { buildLayout, resolveMove, pointBlocked, rng } from './world.js';
 import { heroStats, rollItem, rollRarity, addXp, armorMul, rarityOf } from './items.js';
 
@@ -158,7 +158,7 @@ function addFx(game, fx) { if (game.fx.length < 120) game.fx.push({ t: 0, ...fx 
 function playerDmg(game) {
   const p = game.p;
   const crit = R() * 100 < game.hero.crit;
-  let d = game.hero.damage * rand(0.92, 1.08) * (p.dmgBuff > 0 ? 1.5 : 1);
+  let d = game.hero.damage * rand(0.92, 1.08) * (p.dmgBuff > 0 ? 1.5 : 1) * (game.skillMulNow || 1);
   if (crit) d *= 1.75;
   return { d, crit };
 }
@@ -209,14 +209,22 @@ function killEnemy(game, e, silent = false) {
   if (silent) return;
   const run = game.run, def = e.def, d = game.diff;
   run.kills++;
-  const xp = Math.round(def.xp * d.xp);
+  const xp = Math.round(def.xp * d.xp * (1 + (game.hero.xpPct || 0) / 100));
   run.xp += xp;
   const lv = addXp(game.save, xp);
   floatText(game, e.x, e.y - e.r - 16, `+${xp} xp`, '#9ad0ff', 11);
   if (lv) onLevelUp(game, lv);
   const steelN = def.boss ? 8 + Math.floor(d.s) : e.type === 'brute' ? 2 : R() < 0.1 ? 1 : 0;
   if (steelN) { game.save.steel = (game.save.steel || 0) + steelN; run.steel += steelN; floatText(game, e.x, e.y - e.r - 28, `+${steelN} steel`, '#9fb4c8', 12); }
-  const gold = Math.round(rand(def.gold[0], def.gold[1]) * d.gold);
+  if (def.boss || (e.type === 'brute' && R() < 0.04)) {
+    const a = ARTIFACTS[Math.floor(R() * ARTIFACTS.length)];
+    const own = (game.save.artifacts = game.save.artifacts || {})[a.id];
+    if (!own) { game.save.artifacts[a.id] = { lv: 1 }; setBanner(game, 'Artifact found', a.name, 2.4); floatText(game, e.x, e.y - 50, a.name, '#7ae0ff', 15, true); }
+    else if (own.lv < ART_MAX) { own.lv++; floatText(game, e.x, e.y - 50, `${a.name} +1`, '#7ae0ff', 14, true); }
+    else { game.save.steel = (game.save.steel || 0) + 4; run.steel += 4; }
+    (run.artifacts = run.artifacts || []).push(a.name);
+  }
+  const gold = Math.round(rand(def.gold[0], def.gold[1]) * d.gold * (1 + (game.hero.goldPct || 0) / 100));
   game.pickups.push({ kind: 'gold', amount: gold, x: e.x, y: e.y, vx: rand(-50, 50), vy: rand(-50, 50), t: 0 });
   if (def.boss) {
     for (const o of game.enemies) if (!o.dead && o !== e) killEnemy(game, o, true);
@@ -288,11 +296,11 @@ const SKILLS = {
   },
   whirl(game) {
     const p = game.p;
-    p.spin = { t: 1.5, tick: 0 }; p.skillAnim = 'whirl'; p.skillT = 1.5;
+    p.spin = { t: 1.5, tick: 0, mul: game.skillMulNow || 1 }; p.skillAnim = 'whirl'; p.skillT = 1.5;
   },
   rally(game) {
     const p = game.p;
-    p.hp = Math.min(game.hero.maxHp, p.hp + game.hero.maxHp * 0.25);
+    p.hp = Math.min(game.hero.maxHp, p.hp + game.hero.maxHp * 0.25 * (game.skillMulNow || 1));
     p.dmgBuff = 6; p.skillAnim = 'rally'; p.skillT = 0.5;
     floatText(game, p.x, p.y - 30, 'Rally!', '#ffe38a', 16, true);
     addFx(game, { type: 'ring', x: p.x, y: p.y, r: 120, dur: 0.7, color: '#ffd96a' });
@@ -312,7 +320,7 @@ const SKILLS = {
     const p = game.p;
     const d = Math.min(420, Math.hypot(a.x - p.x, a.y - p.y));
     const x = p.x + Math.cos(a.ang) * d, y = p.y + Math.sin(a.ang) * d;
-    game.zones.push({ kind: 'rain', team: 'p', x, y, r: 112, t: 0, delay: 0, dur: 3, tick: 0, dmg: 0.55 });
+    game.zones.push({ kind: 'rain', team: 'p', x, y, r: 112, t: 0, delay: 0, dur: 3, tick: 0, dmg: 0.55 * (game.skillMulNow || 1) });
     p.face = a.ang; p.skillAnim = 'volley'; p.skillT = 0.4;
   },
   nova(game) {
@@ -359,8 +367,11 @@ function tryUseSkill(game, i, input) {
   if (p.dead || game.save.level < sk.unlock || p.cd[i] > 0 || p.dash || p.spin) return false;
   if (p.mp < sk.cost) { game.mpFlash = 0.4; return false; }
   const a = aimInfo(game, input);
-  p.mp -= sk.cost; p.cd[i] = sk.cd;
+  const lv = (game.save.skillLv || [1, 1, 1])[i] || 1;
+  p.mp -= sk.cost; p.cd[i] = sk.cd * skillCdMul(lv) * (1 - Math.min(0.5, (game.hero.cdr || 0) / 100));
+  game.skillMulNow = skillMul(lv);
   SKILLS[sk.id](game, a, input);
+  game.skillMulNow = 1;
   return true;
 }
 
@@ -537,7 +548,7 @@ function updatePlayer(game, dt, input) {
       for (const e of inCircleEnemies(game, p.x, p.y, 86)) {
         const { d, crit } = playerDmg(game);
         const ang = Math.atan2(e.y - p.y, e.x - p.x);
-        hurtEnemy(game, e, d * 0.8, crit, Math.cos(ang), Math.sin(ang), 110);
+        hurtEnemy(game, e, d * 0.8 * (p.spin.mul || 1), crit, Math.cos(ang), Math.sin(ang), 110);
       }
       addFx(game, { type: 'ring', x: p.x, y: p.y, r: 86, dur: 0.3, color: '#e8f0ff' });
     }
