@@ -15,7 +15,7 @@ from ..world import Rng, dist_to_road
 # (sun colour, sun heading/pitch, ambient, fog colour, fog density, background, exposure, bloom, vignette)
 THEMES = {
     "fields": dict(sun=(2.1, 1.65, 1.1), hp=(-35, -34), amb=(0.26, 0.3, 0.4), fog=(0.52, 0.55, 0.6), dens=0.00035, exp=1.15, bloom=0.5, vig=1.0),
-    "wood": dict(sun=(1.7, 1.45, 0.95), hp=(-30, -40), amb=(0.2, 0.27, 0.27), fog=(0.24, 0.3, 0.26), dens=0.0009, exp=1.2, bloom=0.5, vig=1.2),
+    "wood": dict(sun=(2.0, 1.7, 1.1), hp=(-30, -40), amb=(0.3, 0.38, 0.36), fog=(0.26, 0.32, 0.28), dens=0.0008, exp=1.3, bloom=0.5, vig=1.2),
     "bridge": dict(sun=(2.2, 1.6, 0.95), hp=(-50, -28), amb=(0.26, 0.3, 0.4), fog=(0.5, 0.52, 0.54), dens=0.0004, exp=1.15, bloom=0.55, vig=1.05),
     "marsh": dict(sun=(1.6, 1.2, 0.75), hp=(-20, -20), amb=(0.2, 0.25, 0.23), fog=(0.26, 0.3, 0.24), dens=0.0016, exp=1.2, bloom=0.6, vig=1.3),
     "gate": dict(sun=(2.0, 1.5, 1.0), hp=(-30, -24), amb=(0.26, 0.28, 0.34), fog=(0.42, 0.42, 0.42), dens=0.0006, exp=1.15, bloom=0.55, vig=1.15),
@@ -84,11 +84,16 @@ class World:
         q.quad((0, -L.h, 0), (L.w, -L.h, 0), (L.w, 0, 0), (0, 0, 0), uv=((0, 0), (1, 0), (1, 1), (0, 1)))
         ground = q.build("ground")
         ground.setTexture(gt)
+        if not L.indoor:
+            ts = TextureStage("detail")
+            ts.setMode(TextureStage.MModulate)
+            ground.setTexture(ts, T.detail())
+            ground.setTexScale(ts, 46, 32)
         ground.reparentTo(self.root)
         base = T.hexc(T.THEMES[L.theme]["base"])
         sk = Mesh().box((L.w * 5, L.h * 5, 2), xf((L.w / 2, -L.h / 2, -2.5)))
         skirt = sk.build("skirt")
-        skirt.setColor(base[0] * 0.8, base[1] * 0.8, base[2] * 0.8, 1)
+        skirt.setColor(base[0] * 0.32, base[1] * 0.32, base[2] * 0.3, 1)
         skirt.reparentTo(self.root)
 
         def by(kind):

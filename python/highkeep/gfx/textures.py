@@ -586,6 +586,14 @@ def blob_shadow():
     return cached("blob", paint, repeat=False, srgb=False)
 
 
+def detail():
+    """Neutral tileable grain multiplied over the terrain for fine close-up texture."""
+    def paint():
+        n, n2 = noise_field(128, 128, 16, 4, 41), noise_field(128, 128, 48, 2, 42)
+        return pixels(128, 128, lambda x, y, i: (lambda k: (k, k, k * 0.97))(0.62 + 0.5 * n[i] + (n2[i] - 0.5) * 0.35))
+    return cached("detail", paint)
+
+
 # ---------------------------------------------------------------- terrain painter
 THEMES = {
     "fields": {"base": "#5d6b34", "a": "#75803c", "b": "#485528", "road": "#85704c", "edge": "#5b6a30"},
@@ -606,7 +614,7 @@ def paint_ground(L, quality="high"):
 
 
 def _paint_ground(L, quality="high"):
-    S = 0.35 if quality == "low" else 0.5
+    S = 0.4 if quality == "low" else 0.72
     w, h = int(L.w * S), int(L.h * S)
     img = PNMImage(w, h, 3)
     theme = THEMES[L.theme]

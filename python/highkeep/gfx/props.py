@@ -53,7 +53,7 @@ def tree(variant=0):
     for i in range(3):
         a = i * 2.1 + R()
         trunk.cylinder(1.5, 0.6, 18, 5, xf((math.cos(a) * 3, math.sin(a) * 3, 28 + i * 3), (math.degrees(a), 0, 52)))
-    leafcols = ["#566a2c", "#6a7230", "#4b5f28"]
+    leafcols = ["#6f7f32", "#8a8636", "#5f7230"]
     for c in range(7):
         a = c * 0.9 + R() * 0.4
         r = 4 + R() * 12
@@ -67,7 +67,7 @@ def tree(variant=0):
         for k in range(2):
             cards.quad((-s, 0, -s), (s, 0, -s), (s, 0, s), (-s, 0, s), m=xf((math.cos(a) * r, math.sin(a) * r, h), (R() * 180, (R() - 0.5) * 70 + k * 40, (R() - 0.5) * 30)))
     leaf = lambda: T.leaf_card(leafcols[variant % 3], 21 + variant)
-    return _np([(bark and (lambda n: n.setTexture(bark())), trunk, []), (lambda n: n.setTexture(T.cloth("#35441f", 11, weave=False)), core, []),
+    return _np([(bark and (lambda n: n.setTexture(bark())), trunk, []), (lambda n: n.setTexture(T.cloth("#4a5a2a", 11, weave=False)), core, []),
                 (lambda n: (n.setTexture(leaf()), alpha_cards(n)), cards, [])], "tree")
 
 

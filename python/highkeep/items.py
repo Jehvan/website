@@ -248,6 +248,8 @@ def forge_info(it):
 
 def forge_attempt(it, R=random.random):
     info = forge_info(it)
+    if info is None:
+        return False
     if R() < info["chance"]:
         it["plus"] = it.get("plus", 0) + 1
         it["fp"] = 0

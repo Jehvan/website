@@ -1,5 +1,8 @@
 # Highkeep Road
 
+> **Two versions live here.** The browser game (Vite + three.js) is documented below; the Python / Panda3D rewrite is in
+> [`python/`](python/README.md) (`cd python && pip install -r requirements.txt && python main.py`).
+
 An original medieval-fantasy action RPG for the browser. Built with **Vite + three.js 0.128**; every texture, model and
 icon is generated in code (canvas textures, procedural geometry) — there are no image or model files.
 
