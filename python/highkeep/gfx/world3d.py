@@ -183,6 +183,8 @@ class World:
             for x in (300, 520, 1080, 1300):
                 self.single("slit", x, 140, z=96)
             self.single("throne", 800, 200)
+            for x in (300, 520, 1080, 1300):
+                self.glow(x, 150, 70, (1.0, 0.62, 0.3), 120, 0.28)
             for b in by("banner"):
                 bn = self.single("banner", b["x"], 148, s=1.3, z=124)
             self.place("pillar", [dict(p, rot=0) for p in by("pillar")])
@@ -192,6 +194,8 @@ class World:
             self.single("hallwall", 40, L.h / 2, args=(110, 150, L.h + 160))
             self.single("hallwall", L.w - 40, L.h / 2, args=(110, 150, L.h + 160))
             self.place("pillar", [dict(p, rot=0) for p in by("pillar")])
+            for p in by("pillar"):
+                self.glow(p["x"], p["y"], 10, (0.45, 0.5, 1.0), 90, 0.3)
 
         self.setup_lights()
         self.setup_ambience()

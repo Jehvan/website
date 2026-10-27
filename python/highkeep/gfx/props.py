@@ -349,7 +349,7 @@ def hall_wall(w=1600, h=160, d=140):
     m = Mesh()
     m.box((w, d, h), xf((0, 0, h / 2)), uv=(w / 100, 1.6))
     m.box((w, d + 6, 8), xf((0, 0, h + 4)), uv=(w / 100, 1))
-    return _np([(lambda n: n.setTexture(T.stone("#4e4c50", 34, bricks=4)), m, [])], "hallwall")
+    return _np([(lambda n: n.setTexture(T.stone("#8a8690", 34, bricks=4)), m, [])], "hallwall")
 
 
 def arrow_slit():

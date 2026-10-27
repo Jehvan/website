@@ -239,6 +239,13 @@ def build_ranger():
     hh.cone(3.4, 9, 7, xf((0, -5.2, 8.0), (0, 130, 0)))
     hh.box((10.4, 1.3, 1.0), xf((0, 4.6, 9.1), (0, 15, 0)))
     rig.part("head", "cloth_cream").lathe([(4.9, 0.5), (4.8, 3.6)], 10, xf((0, 0.5, 0), scale=(1, 1.04, 1)), close_top=False, close_bottom=False)   # face wrap
+    for i in range(4):                                                                              # long hood feather
+        rig.part("head", "cloth_red").box((0.5, 3.2, 1.6), xf((3.6 + i * 0.3, -2.0 - i * 2.4, 9.5 - i * 0.7), (0, -18 - i * 8, 18)))
+    rig.part("chest", "leather").lathe([(4.6, -0.8), (8.8 * b, -4.4)], 12, xf(scale=(1, 0.72, 1)), close_top=False, close_bottom=False)          # cape mantle
+    rig.part("chest", "fur").torus(8.0 * b, 0.9, 14, 4, xf((0, 0, -4.2), scale=(1, 0.72, 1)))
+    for side in ("L", "R"):
+        for z in (-3.0, -6.0):
+            rig.part("elbow" + side, "gold").sphere(0.5, 4, 3, xf((0, 2.4, z)))
     quiver(rig)
     bow(rig)
     rig.finish()
@@ -281,6 +288,12 @@ def build_mage():
     hh.dome(5.9, 12, 6, xf((0, -0.5, 3.4), (0, 12, 0), (1.05, 1.12, 1.3)))
     hh.cone(3.6, 11, 7, xf((0, -5.8, 8.2), (0, 125, 0)))
     rig.part("head", "fur").torus(4.6, 0.9, 12, 4, xf((0, 1.0, 5.8), (0, 22, 0), (1, 1.08, 1)))
+    hat = rig.part("head", "cloth_purple")                                                           # wide-brim pointed hat
+    hat.cylinder(10.5, 10.5, 0.8, 14, xf((0, 0.3, 8.8), scale=(1, 1.05, 1)))
+    hat.lathe([(5.2, 8.8), (4.4, 12), (2.8, 17), (1.2, 22), (0.2, 26)], 12, xf((0, 0, 0)), close_top=False, close_bottom=False)
+    rig.part("head", "gold").torus(5.0, 0.55, 14, 4, xf((0, 0, 9.6)))
+    rig.part("head", "gold").sphere(1.1, 6, 4, xf((0, 4.6, 10.0)))
+    rig.part("head", "gem").sphere(0.7, 6, 4, xf((0, 5.2, 10.0)))
     staff(rig)
     rig.finish()
     return rig, dict(style="cast", idle_r=(0.15, 0.5, 0.0), idle_l=(0.15, 0.5, 0.0), cape=dict(style="cloth_crimson", w=12, h1=13, h2=12))
@@ -354,6 +367,7 @@ def build_bowman():
         rig.part("head", "eye").sphere(0.85, 6, 4, xf((s * 1.9, 5.6, 5.2), scale=(1, 0.5, 0.65)))
     quiver(rig)
     bow(rig, R=15)
+    war_standard(rig, 26)
     rig.finish()
     return rig, dict(style="bow", hunch=0.14, idle_l=(1.0, 0.7, 0.1), idle_r=(0.1, 0.6, 0.0), run_ref=90,
                      cape=dict(style="cloth_black", w=13, h1=15, h2=14))

@@ -644,9 +644,10 @@ def _paint_ground(L, quality="high"):
             spot(p, R() * w, R() * h, rmin + R() * (rmax - rmin), col, a * (0.5 + R() * 0.5))
 
     if L.indoor:
-        flag = flagstone("#8c867c" if L.theme == "hall" else "#6c6b7a", L.seed % 7)
+        flag = flagstone("#7a766c" if L.theme == "hall" else "#5e5d6c", L.seed % 7)
         tile = PNMImage()
         flag.store(tile)
+        tile.applyExponent(1 / 2.2)                                      # Texture.store() hands back linear values
         k = int(128 * S * 1.6)
         tile.quickFilterFrom(tile, 0, 0) if False else None
         for ty in range(0, h, k):
@@ -658,6 +659,7 @@ def _paint_ground(L, quality="high"):
         if L.theme == "hall":
             cp = PNMImage()
             carpet().store(cp)
+            cp.applyExponent(1 / 2.2)
             cw = int(120 * sx)
             small = PNMImage(cw, h, 3)
             small.quickFilterFrom(cp)
@@ -766,6 +768,7 @@ def _paint_ground(L, quality="high"):
         st = stone("#847f72", 31, cobbles=True)
         tile = PNMImage()
         st.store(tile)
+        tile.applyExponent(1 / 2.2)
         k = int(128 * sx * 0.9)
         small = PNMImage(k, k, 3)
         small.quickFilterFrom(tile)
