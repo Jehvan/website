@@ -139,7 +139,7 @@ class World:
             self.make_brazier(b["x"], b["y"])
         if L.river:
             self.make_river()
-        for kind in ("fountain", "tent", "tent_blue", "barrel", "crate", "well", "cart", "standard", "camp_tent", "palisade", "rack"):
+        for kind in ("fountain", "tent", "tent_blue", "barrel", "crate", "well", "cart", "standard", "camp_tent", "palisade", "rack", "sarcophagus", "bones"):
             if by(kind):
                 self.place(kind, by(kind), flatten=False)
         for f in by("campfire"):
@@ -183,6 +183,7 @@ class World:
             for x in (300, 520, 1080, 1300):
                 self.single("slit", x, 140, z=96)
             self.single("throne", 800, 200)
+            self.glow(800, 214, 70, (0.9, 0.7, 0.35), 150, 0.3)
             for x in (300, 520, 1080, 1300):
                 self.glow(x, 150, 70, (1.0, 0.62, 0.3), 120, 0.28)
             for b in by("banner"):
@@ -196,6 +197,9 @@ class World:
             self.place("pillar", [dict(p, rot=0) for p in by("pillar")])
             for p in by("pillar"):
                 self.glow(p["x"], p["y"], 10, (0.45, 0.5, 1.0), 90, 0.3)
+            for c in by("crystal"):
+                self.single("crystal", c["x"], c["y"], c["rot"], c["s"])
+                self.glow(c["x"], c["y"], 22 * c["s"], (0.4, 0.65, 1.0), 110 * c["s"], 0.5)
 
         self.setup_lights()
         self.setup_ambience()

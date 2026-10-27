@@ -308,6 +308,9 @@ def build_layout(theme, seed=1, boss=False, floor=0):
                 continue
             prop("brazier", x, y)
             L.obstacles.append(("c", x, y, 11)); block(x, y, 24); L.lights.append((x, y))
+        scatter("crystal", 5, r=12, s0=1.1, s1=1.6)
+        scatter("sarcophagus", 3, r=26, s0=1.2, s1=1.4)
+        scatter("bones", 6, r=8, s0=1.2, s1=1.6, collide=False)
         scatter("rock", 10, r=10, collide=False)
     if not L.indoor:
         dens = {"fields": 380, "wood": 300, "bridge": 320, "marsh": 260, "gate": 220}.get(theme, 250)

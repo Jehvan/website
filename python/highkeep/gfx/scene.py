@@ -5,7 +5,7 @@ from panda3d.core import (NodePath, Plane, Point3, Vec3, Vec4, TextNode, LPoint3
 
 from . import effects as FX
 from . import textures as T
-from .characters import create as create_char
+from .characters import create as create_char, set_outline
 from .meshlib import Mesh, xf
 from . import materials as M
 from .post import Post
@@ -80,6 +80,7 @@ class SceneRenderer:
 
     def set_stage(self, game):
         self.clear()
+        set_outline(self.quality == "high")
         self.world = World(self.base, game.L, self.quality)
         self.world.root.reparentTo(self.stage_root)
         self.world.apply_lights(self.render)
@@ -199,6 +200,7 @@ class SceneRenderer:
         """Show the town hub behind the title/camp UI. side=True shifts the plaza to the lower-left (camp), else centres it."""
         self.clear()
         L = build_town()
+        set_outline(self.quality == "high")
         self.world = World(self.base, L, self.quality)
         self.world.root.reparentTo(self.stage_root)
         self.world.apply_lights(self.render)

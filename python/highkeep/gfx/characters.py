@@ -1,7 +1,7 @@
 """Character designs built on the humanoid rig. create(kind) -> Character with .root, .update(ent, dt, t), .flash(on)."""
 import math
 
-from panda3d.core import NodePath, Vec3
+from panda3d.core import NodePath, Vec3, Shader, CullFaceAttrib, ColorAttrib
 
 from .meshlib import Mesh, xf
 from . import materials as M
@@ -505,6 +505,44 @@ def _cape(rig_inst, spec):
     return upd
 
 
+# Inked outline: the rig is instanced under a wrapper whose state forces a back-face shell pushed out along the normals.
+_OUT_V = """
+#version 130
+uniform mat4 p3d_ModelViewProjectionMatrix;
+uniform float width;
+in vec4 p3d_Vertex;
+in vec3 p3d_Normal;
+void main() { gl_Position = p3d_ModelViewProjectionMatrix * vec4(p3d_Vertex.xyz + normalize(p3d_Normal) * width, 1.0); }
+"""
+_OUT_F = """
+#version 130
+out vec4 fragColor;
+void main() { fragColor = vec4(0.02, 0.015, 0.012, 1.0); }
+"""
+_outline_shader = [None]
+OUTLINE = [True]
+
+
+def set_outline(on):
+    OUTLINE[0] = bool(on)
+
+
+def _make_outline(rig_root, width):
+    if _outline_shader[0] is None:
+        _outline_shader[0] = Shader.make(Shader.SL_GLSL, _OUT_V, _OUT_F)
+    o = NodePath("outline")
+    rig_root.instanceTo(o)
+    o.setShader(_outline_shader[0], 200)
+    o.setShaderInput("width", width)
+    o.setAttrib(CullFaceAttrib.make(CullFaceAttrib.MCullCounterClockwise), 200)
+    o.setTextureOff(200)
+    o.setLightOff(200)
+    o.setMaterialOff(200)
+    o.setTransparency(0, 200)
+    o.setDepthOffset(1)
+    return o
+
+
 class Character:
     def __init__(self, template, cfg, kind):
         self.kind = kind
@@ -525,6 +563,10 @@ class Character:
         c["extras"] = extras
         self.anim = Animator(self.rig, c)
         self._flash = False
+        self.outline = None
+        if OUTLINE[0]:
+            self.outline = _make_outline(self.rig.root, 0.55)
+            self.outline.reparentTo(self.root)
 
     def update(self, ent, dt, t, is_player):
         self.anim.apply(ent, dt, t, is_player)

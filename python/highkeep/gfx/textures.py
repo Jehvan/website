@@ -453,7 +453,7 @@ def leaf_card(base="#4a7a2a", seed=21):
         p = painter(img)
         b = hexc(base)
         R = _rng(seed)
-        for _ in range(110):
+        for _ in range(190):
             a, r = R() * 6.283, math.sqrt(R()) * 54
             x, y = 64 + math.cos(a) * r, 64 + math.sin(a) * r * 0.9
             v = 0.45 + R() * 0.6
@@ -686,6 +686,14 @@ def _paint_ground(L, quality="high"):
         for _ in range(260 if L.theme != "wood" else 120):
             fc = ((1.0, 0.95, 0.4), (0.95, 0.95, 0.95), (0.9, 0.35, 0.45), (0.55, 0.5, 0.95))[int(R() * 4)]
             spot(p, R() * w, R() * h, 0.9 + R() * 0.9, fc, 0.85, False)
+    if L.theme in ("fields", "wood", "bridge", "gate", "town", "marsh"):                       # hand-painted grass strokes
+        n = int(w * h / (110 if quality == "high" else 170))
+        for _ in range(n):
+            x, y = R() * w, R() * h
+            c = mix(A if R() < 0.55 else B, (0.95, 0.95, 0.5), 0.15 * R())
+            ln = (2.5 + R() * 4) * (sx * 1.4)
+            ang = -1.57 + (R() - 0.5) * 1.2
+            line(p, x, y, x + math.cos(ang) * ln, y + math.sin(ang) * ln, c, 0.9, 0.55)
     # leaf litter / dirt speckle for a worn, earthy look
     for _ in range(900):
         c = (0.36 + R() * 0.12, 0.26 + R() * 0.08, 0.14) if R() < 0.6 else (0.5, 0.38, 0.2)

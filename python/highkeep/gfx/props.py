@@ -56,18 +56,21 @@ def tree(variant=0):
     leafcols = ["#4f8a2c", "#69a233", "#3f7426"]
     for c in range(7):
         a = c * 0.9 + R() * 0.4
-        r = 4 + R() * 12
-        cx, cy, cz = math.cos(a) * r, math.sin(a) * r, 44 + R() * 18
-        core.sphere(9 + R() * 4, 8, 6, xf((cx, cy, cz), scale=(1.1, 1.1, 0.8)), color=(0.8 + R() * 0.2, 0.85 + R() * 0.15, 0.7 + R() * 0.2, 1))
-    for i in range(10):
+        r = 3 + R() * 10
+        cx, cy, cz = math.cos(a) * r, math.sin(a) * r, 46 + R() * 16
+        core.sphere(8 + R() * 3, 8, 6, xf((cx, cy, cz), scale=(1.1, 1.1, 0.8)), color=(0.75 + R() * 0.25, 0.85 + R() * 0.15, 0.65 + R() * 0.2, 1))
+    for i in range(30):                                                      # leaf cards over a dome so the crown reads full
         a = R() * 6.28
-        r = 4 + R() * 14
-        h = 40 + R() * 24
-        s = 17 + R() * 6
+        el = R() * 1.2
+        r = 8 + math.cos(el) * 16
+        h = 50 + math.sin(el) * 22 + (R() - 0.5) * 6
+        s = 15 + R() * 6
+        tone = 0.78 + R() * 0.4
         for k in range(2):
-            cards.quad((-s, 0, -s), (s, 0, -s), (s, 0, s), (-s, 0, s), m=xf((math.cos(a) * r, math.sin(a) * r, h), (R() * 180, (R() - 0.5) * 70 + k * 40, (R() - 0.5) * 30)))
+            cards.quad((-s, 0, -s), (s, 0, -s), (s, 0, s), (-s, 0, s), color=(tone, tone, tone * 0.92, 1),
+                       m=xf((math.cos(a) * r, math.sin(a) * r, h), (R() * 180, (R() - 0.5) * 80 + k * 45, (R() - 0.5) * 30)))
     leaf = lambda: T.leaf_card(leafcols[variant % 3], 21 + variant)
-    return _np([(bark and (lambda n: n.setTexture(bark())), trunk, []), (lambda n: n.setTexture(T.cloth("#4a5a2a", 11, weave=False)), core, []),
+    return _np([(bark and (lambda n: n.setTexture(bark())), trunk, []), (lambda n: n.setTexture(T.cloth("#3f7028", 11, weave=False)), core, []),
                 (lambda n: (n.setTexture(leaf()), alpha_cards(n)), cards, [])], "tree")
 
 
@@ -342,7 +345,7 @@ def throne():
         gold.cone(2.2, 14, 4, xf((x, 24, 112 - abs(x) * 0.4)))
     cush = Mesh()
     cush.box((34, 28, 5), xf((0, 9, 39)))
-    return _np([(lambda n: n.setTexture(T.stone("#4e4c52", 34, bricks=4)), dais, []), ("iron", seat, []), ("iron", back, []), ("gold", gold, []), ("cloth_red", cush, [])], "throne")
+    return _np([(lambda n: n.setTexture(T.stone("#8a8690", 34, bricks=4)), dais, []), ("steel_dark", seat, []), ("steel_dark", back, []), ("gold", gold, []), ("cloth_red", cush, [])], "throne")
 
 
 def hall_wall(w=1600, h=160, d=140):
@@ -541,9 +544,41 @@ def weapon_rack():
     return _np([("wood", wd, []), ("steel", st, [])], "rack")
 
 
+def crystal():
+    cr, base = Mesh(), Mesh()
+    R = Rng(77)
+    for i in range(6):
+        a = i / 6 * math.tau + R()
+        h = 16 + R() * 20
+        cr.cone(3.2 + R() * 1.6, h, 5, xf((math.cos(a) * (3 + R() * 6), math.sin(a) * (3 + R() * 6), 0), (R() * 360, (R() - 0.5) * 36, (R() - 0.5) * 36)))
+    cr.cone(4.5, 30, 5, xf((0, 0, 0)))
+    base.sphere(9, 7, 4, xf((0, 0, 0), scale=(1.3, 1.2, 0.45)))
+    return _np([("crystal", cr, []), (lambda n: n.setTexture(T.rock("#4a4852")), base, [])], "crystal")
+
+
+def sarcophagus():
+    st, lid, tr = Mesh(), Mesh(), Mesh()
+    st.box((22, 46, 14), xf((0, 0, 7)), uv=(1, 1))
+    lid.box((24, 48, 5), xf((0, 0, 16.5)))
+    lid.box((13, 30, 5), xf((0, 0, 21)))
+    tr.box((24.4, 1.2, 1.2), xf((0, 20, 17)))
+    return _np([(lambda n: n.setTexture(T.stone("#8a8690", 91, bricks=3)), st, []), (lambda n: n.setTexture(T.stone("#9a96a0", 92)), lid, []), ("gold", tr, [])], "sarcophagus")
+
+
+def bones():
+    bn, sk = Mesh(), Mesh()
+    R = Rng(63)
+    for i in range(9):
+        a = R() * math.tau
+        bn.cylinder(0.9, 0.9, 10 + R() * 8, 5, xf((math.cos(a) * 9, math.sin(a) * 9, 0.9), (R() * 360, 90, 0)))
+    for i in range(3):
+        sk.sphere(3.6, 7, 5, xf((math.cos(i * 2.1) * 6, math.sin(i * 2.1) * 6, 3.0)))
+    return _np([("bone", bn, []), ("bone", sk, [])], "bones")
+
+
 BUILD = {"tree": tree, "pine": pine, "deadtree": deadtree, "grass": grass_tuft, "reeds": reeds, "rock": rock, "hay": hay_bale, "fence": fence,
          "logs": log_pile, "pillar": pillar, "column": column, "ruin": ruin, "lamp": lamp_post, "brazier": brazier_body, "cottage": cottage,
-         "bridge": bridge, "tower": tower, "portcullis": portcullis, "banner": banner_cloth, "tent": tent, "tent_blue": tent_blue, "fountain": fountain, "barrel": barrel, "crate": crate, "forge": forge, "well": well, "cart": cart, "campfire": campfire, "standard": standard, "camp_tent": camp_tent, "palisade": palisade, "rack": weapon_rack, "throne": throne, "slit": arrow_slit}
+         "bridge": bridge, "tower": tower, "portcullis": portcullis, "banner": banner_cloth, "tent": tent, "tent_blue": tent_blue, "fountain": fountain, "barrel": barrel, "crate": crate, "forge": forge, "well": well, "cart": cart, "crystal": crystal, "sarcophagus": sarcophagus, "bones": bones, "campfire": campfire, "standard": standard, "camp_tent": camp_tent, "palisade": palisade, "rack": weapon_rack, "throne": throne, "slit": arrow_slit}
 
 
 def proto(kind, *args):
