@@ -121,10 +121,11 @@ class World:
             self.make_pool(pool)
         if not L.indoor:
             self.perimeter()
+            self.scatter_details()
 
         self.smokes = []
         for c in by("cottage"):
-            self.single("cottage", c["x"], c["y"], c["rot"], c["s"])
+            self.single("cottage", c["x"], c["y"], c["rot"], c["s"], args=(int(c["x"] * 0.07 + c["y"] * 0.11) % 6,))
             cx = c["x"] + math.cos(-c["rot"]) * 34 * c["s"] + math.sin(-c["rot"]) * 16 * c["s"]
             cy = c["y"] - math.sin(-c["rot"]) * 34 * c["s"] + math.cos(-c["rot"]) * 16 * c["s"]
             for i in range(4):
@@ -203,6 +204,38 @@ class World:
 
         self.setup_lights()
         self.setup_ambience()
+
+    def scatter_details(self):
+        """Purely visual ground clutter (flowers, pebbles, mushrooms) from its own RNG so layouts stay untouched."""
+        L = self.L
+        R = Rng(L.seed * 5 + 1)
+        plaza = getattr(L, "plaza", None)
+        n = 1.0 if self.hi else 0.45
+
+        def spots(count, clear_road):
+            out = []
+            for _ in range(int(count * n * 6)):
+                if len(out) >= int(count * n):
+                    break
+                x, y = 40 + R() * (L.w - 80), 40 + R() * (L.h - 80)
+                if L.road and dist_to_road(L.road, x, y) < L.road_w + clear_road:
+                    continue
+                if plaza and math.hypot(x - plaza[0], y - plaza[1]) < plaza[2] + 14:
+                    continue
+                if any(abs(x - o[1]) < o[3] and abs(y - o[2]) < o[3] for o in L.obstacles if o[0] == "c" and len(o) > 3):
+                    continue
+                out.append(dict(x=x, y=y, rot=R() * 6.28, s=0.8 + R() * 0.7))
+            return out
+        if L.theme in ("fields", "bridge", "town", "gate"):
+            for v in range(4):
+                self.place("flower", spots(28, 18), v)
+        elif L.theme == "wood":
+            for v in (1, 2):
+                self.place("flower", spots(12, 18), v)
+            self.place("mushrooms", spots(30, 30))
+        elif L.theme == "marsh":
+            self.place("mushrooms", spots(26, 30))
+        self.place("pebbles", spots(44, 8))
 
     def perimeter(self):
         L, R = self.L, self.R

@@ -202,7 +202,15 @@ def brazier_body():
 
 
 # ---------------------------------------------------------------- buildings
-def cottage():
+def roof_tex(variant):
+    if variant % 3 == 1:
+        return T.tiles("#9a4a30", 14)
+    if variant % 3 == 2:
+        return T.slate()
+    return T.thatch(variant // 3)
+
+
+def cottage(variant=0):
     W, D, H = 96, 64, 34
     plaster, timber, thatch, stone_, glass = Mesh(), Mesh(), Mesh(), Mesh(), Mesh()
     plaster.box((W, D, H), xf((0, 0, H / 2 + 5)), uv=(1.4, 1.4))
@@ -240,7 +248,7 @@ def cottage():
     for x in (W / 5 + 6, -W / 2 + 14):
         for s in (-1, 1):
             timber.box((4.6, 0.8, 9.6), xf((x + s * 7, D / 2 + 1, 26)))
-    return _np([(lambda n: n.setTexture(T.plaster("#a89c82")), plaster, []), ("wood_dark", timber, []), (lambda n: n.setTexture(T.thatch()), thatch, []),
+    return _np([(lambda n: n.setTexture(T.plaster("#a89c82")), plaster, []), ("wood_dark", timber, []), (lambda n: n.setTexture(roof_tex(variant)), thatch, []),
                 (lambda n: n.setTexture(T.stone("#6b665c", 33)), stone_, []), ("dark", glass, [])], "cottage")
 
 
@@ -576,9 +584,47 @@ def bones():
     return _np([("bone", bn, []), ("bone", sk, [])], "bones")
 
 
+FLOWER_COLS = [(1.0, 0.86, 0.25), (0.97, 0.97, 0.94), (0.9, 0.25, 0.35), (0.5, 0.5, 1.0)]
+
+
+def flower(variant=0):
+    """Small cluster: three stalks topped with five-petal blooms."""
+    st, bl = Mesh(), Mesh()
+    R = Rng(200 + variant)
+    c = FLOWER_COLS[variant % 4]
+    for i in range(3):
+        a = i * 2.1 + R()
+        x, y, h = math.cos(a) * 3.0, math.sin(a) * 3.0, 6 + R() * 4
+        st.cylinder(0.25, 0.2, h, 4, xf((x, y, 0)), color=(0.35, 0.6, 0.2, 1))
+        for k in range(5):
+            bl.cone(0.9, 1.8, 4, xf((x, y, h), (k * 72, 78, 0)), color=(c[0], c[1], c[2], 1))
+        bl.sphere(0.65, 5, 4, xf((x, y, h + 0.2)), color=(0.95, 0.7, 0.15, 1))
+    return _np([(lambda n: n.setTexture(T.cloth("#ffffff", 1, weave=False)), st, []), (lambda n: n.setTexture(T.cloth("#ffffff", 1, weave=False)), bl, [])], "flower")
+
+
+def pebbles():
+    m = Mesh()
+    R = Rng(66)
+    for i in range(5):
+        a = R() * math.tau
+        m.sphere(1.4 + R() * 1.6, 6, 4, xf((math.cos(a) * 5, math.sin(a) * 5, 0.2), scale=(1.2, 1, 0.55)))
+    return _np([(lambda n: n.setTexture(T.rock("#8a8478")), m, [])], "pebbles")
+
+
+def mushrooms():
+    st, cp = Mesh(), Mesh()
+    R = Rng(88)
+    for i in range(4):
+        a = i * 1.6 + R()
+        x, y, h = math.cos(a) * 3.5, math.sin(a) * 3.5, 2.5 + R() * 2
+        st.cylinder(0.7, 0.55, h, 5, xf((x, y, 0)), color=(0.9, 0.86, 0.75, 1))
+        cp.dome(1.9 + R() * 0.8, 7, 3, xf((x, y, h)), color=(0.75, 0.2, 0.15, 1))
+    return _np([(lambda n: n.setTexture(T.cloth("#ffffff", 1, weave=False)), st, []), (lambda n: n.setTexture(T.cloth("#ffffff", 1, weave=False)), cp, [])], "mushrooms")
+
+
 BUILD = {"tree": tree, "pine": pine, "deadtree": deadtree, "grass": grass_tuft, "reeds": reeds, "rock": rock, "hay": hay_bale, "fence": fence,
          "logs": log_pile, "pillar": pillar, "column": column, "ruin": ruin, "lamp": lamp_post, "brazier": brazier_body, "cottage": cottage,
-         "bridge": bridge, "tower": tower, "portcullis": portcullis, "banner": banner_cloth, "tent": tent, "tent_blue": tent_blue, "fountain": fountain, "barrel": barrel, "crate": crate, "forge": forge, "well": well, "cart": cart, "crystal": crystal, "sarcophagus": sarcophagus, "bones": bones, "campfire": campfire, "standard": standard, "camp_tent": camp_tent, "palisade": palisade, "rack": weapon_rack, "throne": throne, "slit": arrow_slit}
+         "bridge": bridge, "tower": tower, "portcullis": portcullis, "banner": banner_cloth, "tent": tent, "tent_blue": tent_blue, "fountain": fountain, "barrel": barrel, "crate": crate, "forge": forge, "well": well, "cart": cart, "flower": flower, "pebbles": pebbles, "mushrooms": mushrooms, "crystal": crystal, "sarcophagus": sarcophagus, "bones": bones, "campfire": campfire, "standard": standard, "camp_tent": camp_tent, "palisade": palisade, "rack": weapon_rack, "throne": throne, "slit": arrow_slit}
 
 
 def proto(kind, *args):

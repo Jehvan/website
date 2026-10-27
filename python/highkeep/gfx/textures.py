@@ -345,19 +345,52 @@ def stripes(c1, c2, n=4):
     return cached(f"stripes_{c1[1:]}_{c2[1:]}_{n}", paint)
 
 
-def thatch():
+def thatch(variant=0):
+    """Straw courses with dark gaps, bleached streaks and moss; variants shift the straw colour."""
     def paint():
-        img = pixels(128, 128, lambda x, y, i: (0.52, 0.42, 0.22))
+        base = [(0.50, 0.38, 0.19), (0.42, 0.33, 0.18), (0.55, 0.45, 0.24)][variant % 3]
+        img = pixels(128, 128, lambda x, y, i: base)
         p = painter(img)
-        R = _rng(11)
-        for _ in range(1100):
-            x, y, ln = R() * 128, R() * 128, 8 + R() * 14
-            v = 0.45 + R() * 0.4
-            line(p, x, y, x + (R() - 0.5) * 3, y + ln, (v, v * 0.78, v * 0.36), 0.9 + R(), 0.5 + R() * 0.4)
+        R = _rng(11 + variant)
+        for y in range(0, 128, 16):                                  # bundled courses, each lighter at its lower edge
+            for k in range(16):
+                v = 0.78 + 0.34 * k / 16
+                line(p, 0, y + k, 128, y + k, (base[0] * v, base[1] * v, base[2] * v), 1.2, 0.55)
+        for _ in range(1500):
+            x, y, ln = R() * 128, R() * 128, 7 + R() * 14
+            v = 0.55 + R() * 0.65
+            line(p, x, y, x + (R() - 0.5) * 3, y + ln, (base[0] * v * 1.05, base[1] * v, base[2] * v * 0.8), 0.9 + R() * 0.8, 0.5 + R() * 0.4)
         for y in range(0, 128, 16):
-            line(p, 0, y, 128, y, (0.15, 0.09, 0.02), 1.6, 0.25)
+            line(p, 0, y, 128, y, (0.1, 0.06, 0.02), 1.8, 0.45)
+        for _ in range(26):                                          # moss / weathering
+            spot(p, R() * 128, R() * 128, 3 + R() * 6, (0.22, 0.34, 0.12), 0.3 * R())
         return img
-    return cached("thatch", paint)
+    return cached(f"thatch2_{variant}", paint)
+
+
+def tiles(base="#9a4a30", seed=14):
+    """Overlapping curved clay tiles in staggered rows."""
+    def paint():
+        b = hexc(base)
+        img = pixels(128, 128, lambda x, y, i: (b[0] * 0.5, b[1] * 0.5, b[2] * 0.5))
+        p = painter(img)
+        R = _rng(seed)
+        rh, cw = 16, 16
+        for r in range(8):
+            x = -(r % 2) * cw / 2
+            while x < 128:
+                v = 0.78 + R() * 0.4
+                col = (b[0] * v, b[1] * v, b[2] * v)
+                rect(p, x + 1, r * rh + 1, x + cw - 1, r * rh + rh - 1, col)
+                for k in range(6):                                   # lit upper, shaded lower: reads as a curved tile
+                    line(p, x + 2, r * rh + 2 + k * 2, x + cw - 2, r * rh + 2 + k * 2, (col[0] * (1.15 - k * 0.07),) * 1 + (col[1] * (1.15 - k * 0.07), col[2] * (1.15 - k * 0.07)), 1.2, 0.8)
+                line(p, x + 1, r * rh + rh - 1, x + cw - 1, r * rh + rh - 1, (0.08, 0.03, 0.02), 1.6, 0.6)
+                line(p, x + cw, r * rh, x + cw, r * rh + rh, (0.08, 0.03, 0.02), 1.2, 0.5)
+                x += cw
+        for _ in range(18):
+            spot(p, R() * 128, R() * 128, 3 + R() * 6, (0.22, 0.32, 0.12), 0.3 * R())
+        return img
+    return cached(f"tiles_{base[1:]}_{seed}", paint)
 
 
 def slate():
