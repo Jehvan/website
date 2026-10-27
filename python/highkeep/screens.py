@@ -123,7 +123,7 @@ class Screens:
         k, u = self.kit, None
         root = self.begin("title")
         W, H, u = k.W, k.H, self.u
-        k.gradient(root, 0, 0, W, H, (0.2, 0.12, 0.07, 1), (0.04, 0.03, 0.02, 1), 40)
+        k.gradient(root, 0, 0, W, H, (0.06, 0.04, 0.02, 0.35), (0.04, 0.03, 0.02, 0.78), 40)
         cx = W / 2
         k.text(root, cx, 28 * u, "AN ORIGINAL TALE OF THE ROAD", 13 * u, DIM, "center", serif=False)
         k.text(root, cx, 52 * u, "HIGHKEEP", 74 * u, (0.96, 0.87, 0.64, 1), "center")
@@ -161,9 +161,8 @@ class Screens:
         hero = I.hero_stats(s)
         root = self.begin("camp")
         W, H, u = k.W, k.H, self.u
-        k.gradient(root, 0, 0, W, H, (0.13, 0.09, 0.06, 1), (0.06, 0.045, 0.035, 1), 30)
         # header
-        k.box(root, 0, 0, W, 54 * u, (0, 0, 0, 0.35))
+        k.gradient(root, 0, 0, W, 60 * u, (0.04, 0.03, 0.02, 0.8), (0.04, 0.03, 0.02, 0.0), 10)
         k.text(root, 18, 14 * u, "Highkeep Road", 24 * u, (0.96, 0.87, 0.64, 1))
         k.text(root, 18 + 190 * u, 22 * u, "CAMP", 12 * u, DIM, serif=False)
         rx = W - 18
@@ -190,7 +189,7 @@ class Screens:
     def draw_map(self, root, x, y, w, s, hero):
         k, st, u = self.kit, self.st, self.u
         mh = w * 0.56
-        mh = min(mh, (self.kit.H - y) * 0.52)
+        mh = min(mh, (self.kit.H - y) * 0.42)
         mw = mh / 0.56
         k.box(root, x, y, mw, mh, (0.1, 0.08, 0.06, 1), LINE2, 2)
         k.gradient(root, x, y, mw, mh, (0.88, 0.8, 0.62, 1), (0.7, 0.58, 0.38, 1), 30)
@@ -240,9 +239,9 @@ class Screens:
             if done:
                 k.text(root, nx + r - 2, ny - r - 6, "+", 14 * u, (0.7, 1, 0.55, 1))
         # info panel
-        iy = y + mh + 10
-        ih = self.kit.H - iy - 14
-        k.box(root, x, iy, mw, ih, PANEL, LINE, 1.5)
+        ih = 176 * u
+        iy = self.kit.H - ih - 14
+        k.box(root, x, iy, mw, ih, (0.12, 0.095, 0.075, 0.9), LINE, 1.5)
         sid = st["sel"]
         if sid == "vault":
             un = s["cleared"] >= 6

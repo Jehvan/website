@@ -328,3 +328,50 @@ def point_blocked(L, x, y, r=4):
     t = _P(x, y, r)
     resolve_move(L, t, r)
     return abs(t.x - x) > 0.5 or abs(t.y - y) > 0.5
+
+
+def build_town(seed=3):
+    """Non-playable hub: cobbled plaza with fountain, market tents, forge and cottages."""
+    L = Layout("town", seed)
+    R = Rng(seed * 31 + 7)
+    L.plaza = (800, 600, 215)
+    L.road = [(800, H + 60), (800, 900), (800, 800)]
+    L.road_w = 34
+    L.paths = [[(-60, 560), (300, 575), (590, 600)], [(1010, 610), (1300, 560), (W + 60, 540)], [(800, 380), (800, 200), (790, -60)]]
+    L.start = (800, 760)
+
+    def prop(kind, x, y, rot=0.0, s=1.0, **kw):
+        L.props.append(dict(kind=kind, x=x, y=y, rot=rot, s=s, **kw))
+
+    prop("fountain", 800, 600, s=2.0)
+    prop("tent", 575, 470, rot=0.35, s=1.5)
+    prop("tent_blue", 1030, 470, rot=-0.35, s=1.5)
+    prop("tent", 1020, 735, rot=math.pi - 0.4, s=1.4)
+    prop("forge", 430, 660, rot=0.2, s=1.8)
+    prop("well", 1190, 640, s=1.5)
+    prop("cart", 640, 790, rot=0.5, s=1.5)
+    prop("cottage", 330, 270, rot=0.1, s=1.5)
+    prop("cottage", 800, 190, rot=0.0, s=1.8)
+    prop("cottage", 1270, 280, rot=-0.15, s=1.5)
+    prop("cottage", 1330, 800, rot=3.3, s=1.3)
+    prop("cottage", 250, 880, rot=0.3, s=1.3)
+    for a in range(8):
+        ang = a / 8 * math.tau + 0.2
+        prop("lamp", 800 + math.cos(ang) * 230, 600 + math.sin(ang) * 230 * 0.92, rot=ang + math.pi)
+    for x, y in [(600, 430), (620, 520), (1060, 440), (1000, 500), (1050, 770), (990, 700), (560, 800), (700, 800), (455, 600), (395, 725)]:
+        prop("barrel" if R() < 0.5 else "crate", x, y, rot=R() * 6, s=1.5)
+    for _ in range(50):
+        x, y = R() * W, R() * H
+        if math.hypot(x - 800, y - 600) < 280:
+            continue
+        prop("tree", x, y, rot=R() * 6, s=1.1 + R() * 0.7, pine=R() < 0.25)
+    for _ in range(60):
+        x, y = R() * W, R() * H
+        if math.hypot(x - 800, y - 600) < 235:
+            continue
+        prop("grass", x, y, rot=R() * 6, s=0.8 + R() * 0.7)
+    for _ in range(10):
+        x, y = 80 + R() * (W - 160), 80 + R() * (H - 160)
+        if math.hypot(x - 800, y - 600) > 300:
+            prop("rock", x, y, rot=R() * 6, s=0.8 + R() * 0.6)
+    return L

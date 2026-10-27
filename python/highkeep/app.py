@@ -53,6 +53,7 @@ class HighkeepApp:
         self.base.taskMgr.add(self.tick, "tick")
         self.base.accept("aspectRatioChanged", self.on_resize)
         self.base.accept("window-event", self.on_window)
+        self.show_hub(False)
         self.screens.title()
 
     # ------------------------------------------------------------ input
@@ -144,14 +145,32 @@ class HighkeepApp:
         self.persist()
         self.stop_stage()
         self.mode = "title"
+        self.show_hub(False)
         self.screens.title()
 
     def to_camp(self):
         self.stop_stage()
         self.persist()
         self.mode = "camp"
+        self.show_hub(True)
         self.screens.st.update(tab="hero", sel=None, eq_sel=None, bag_sel=None)
         self.screens.camp()
+
+    def ensure_scene(self):
+        if self.scene is None:
+            from .gfx.scene import SceneRenderer
+            self.scene = SceneRenderer(self.base, self.settings)
+        return self.scene
+
+    def show_hub(self, side):
+        sc = self.ensure_scene()
+        cls = self.save["cls"] if self.save else "knight"
+        key = (cls, side, self.settings.get("quality", "high"))
+        if sc.hub is not None and getattr(sc, "hub_key", None) == key:
+            return
+        sc.quality = key[2]
+        sc.set_hub(cls, side)
+        sc.hub_key = key
 
     def stop_stage(self):
         self.game.mode = "idle"
@@ -166,9 +185,7 @@ class HighkeepApp:
         if not s or (sid == "vault" and s["cleared"] < 6) or (sid != "vault" and sid > s["cleared"] + 1):
             return
         self.screens.clear()
-        if self.scene is None:
-            from .gfx.scene import SceneRenderer
-            self.scene = SceneRenderer(self.base, self.settings)
+        self.ensure_scene()
         self.game.save = s
         self.scene.quality = self.settings.get("quality", "high")
         self.game.start_stage(sid, floor)
@@ -210,6 +227,8 @@ class HighkeepApp:
         self.kit.update_hover()
         self.screens.tick(dt)
         g = self.game
+        if self.scene and self.scene.hub is not None and self.mode in ("title", "camp"):
+            self.scene.render_hub(dt)
         if g.mode in ("stage", "ended") and self.scene:
             if self.mode == "stage" and not g.paused:
                 self._read_input()

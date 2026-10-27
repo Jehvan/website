@@ -78,7 +78,9 @@ class Kit:
         for i in range(steps):
             t = i / (steps - 1)
             col = tuple(top[k] + (bottom[k] - top[k]) * t for k in range(4))
-            self._card(parent, x, y + h * i / steps, w, h / steps + 1, col)
+            y0, y1 = round(y + h * i / steps), round(y + h * (i + 1) / steps)
+            if y1 > y0:
+                self._card(parent, x, y0, w, y1 - y0, col)
 
     def text(self, parent, x, y, s, size=18, color=INK, align="left", serif=True, wrap=None, shadow=True, bold=False):
         tn = TextNode("t")

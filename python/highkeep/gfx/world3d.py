@@ -19,11 +19,12 @@ THEMES = {
     "bridge": dict(sun=(2.6, 2.0, 1.2), hp=(-50, -28), amb=(0.42, 0.46, 0.52), fog=(0.4, 0.5, 0.3), dens=0.0002, exp=1.25, bloom=0.55, vig=0.7),
     "marsh": dict(sun=(1.9, 1.5, 0.9), hp=(-20, -20), amb=(0.32, 0.4, 0.34), fog=(0.34, 0.4, 0.3), dens=0.0011, exp=1.3, bloom=0.6, vig=1.0),
     "gate": dict(sun=(2.5, 1.9, 1.2), hp=(-30, -24), amb=(0.4, 0.42, 0.48), fog=(0.5, 0.5, 0.48), dens=0.0004, exp=1.25, bloom=0.55, vig=0.8),
+    "town": dict(sun=(2.7, 2.15, 1.35), hp=(-48, -36), amb=(0.45, 0.48, 0.5), fog=(0.42, 0.52, 0.32), dens=0.00015, exp=1.25, bloom=0.55, vig=0.55),
     "hall": dict(sun=(0.9, 1.0, 1.5), hp=(-20, -55), amb=(0.6, 0.56, 0.66), fog=(0.05, 0.04, 0.05), dens=0.0008, exp=1.6, bloom=0.8, vig=1.5),
     "vault": dict(sun=(0.8, 0.95, 1.4), hp=(-20, -55), amb=(0.55, 0.58, 0.78), fog=(0.03, 0.03, 0.05), dens=0.001, exp=1.6, bloom=0.8, vig=1.6),
 }
 
-AMB = {"fields": ((1.0, 0.95, 0.7), 26, 3.5, 3), "wood": ((0.75, 1.0, 0.55), 30, 4, 2), "bridge": ((1, 1, 1), 20, 3, 2),
+AMB = {"town": ((1.0, 0.95, 0.7), 26, 3.5, 3), "fields": ((1.0, 0.95, 0.7), 26, 3.5, 3), "wood": ((0.75, 1.0, 0.55), 30, 4, 2), "bridge": ((1, 1, 1), 20, 3, 2),
        "marsh": ((0.85, 1.0, 0.45), 44, 5, 3), "gate": ((1.0, 0.6, 0.3), 30, 3.5, 12), "hall": ((1.0, 0.6, 0.3), 36, 3.5, 11),
        "vault": ((1.0, 0.5, 0.2), 40, 3.5, 11)}
 
@@ -91,9 +92,9 @@ class World:
             ground.setTexScale(ts, 46, 32)
         ground.reparentTo(self.root)
         base = T.hexc(T.THEMES[L.theme]["base"])
-        sk = Mesh().box((L.w * 5, L.h * 5, 2), xf((L.w / 2, -L.h / 2, -2.5)))
+        lin = tuple((c * 0.7) ** 2.2 for c in base) + (1,)
+        sk = Mesh().box((L.w * 5, L.h * 5, 2), xf((L.w / 2, -L.h / 2, -2.5)), color=lin)
         skirt = sk.build("skirt")
-        skirt.setColor(base[0] * 0.6, base[1] * 0.6, base[2] * 0.55, 1)
         skirt.reparentTo(self.root)
 
         def by(kind):
@@ -138,6 +139,20 @@ class World:
             self.make_brazier(b["x"], b["y"])
         if L.river:
             self.make_river()
+        if L.theme == "town":
+            for kind in ("fountain", "tent", "tent_blue", "barrel", "crate", "well", "cart"):
+                self.place(kind, by(kind), flatten=False)
+            for f in by("forge"):
+                self.single("forge", f["x"], f["y"], f["rot"], f["s"])
+                flames = []
+                for i in range(3):
+                    fl = FX.flame(14, 24)
+                    fl.reparentTo(self.root)
+                    fl.setPos(*P3(f["x"] + (i - 1) * 4 * f["s"], f["y"] + 3 * f["s"], 24 * f["s"] + i))
+                    flames.append(fl)
+                gl = self.glow(f["x"], f["y"] + 4 * f["s"], 30 * f["s"], (1.0, 0.5, 0.18), 110, 0.55)
+                self.fires.append((flames, gl, f["x"], f["y"] + 3 * f["s"], random.random() * 10, 24 * f["s"]))
+                self.lights.append((f["x"], f["y"]))
         if L.theme == "gate":
             for w in by("wall"):
                 self.single("wall", w["x"], w["y"], args=(w["w"],))
@@ -323,11 +338,12 @@ class World:
             g.setPos(*P3(cx + k * 14, cy - k * 6, base + k * 46))
             g.setScale(10 + k * 26)
             g.setColor(0.8, 0.8, 0.8, 0.3 * (1 - k))
-        for flames, gl, x, y, seed in self.fires:
+        for flames, gl, x, y, seed, *zb in self.fires:
+            z0 = zb[0] if zb else 40
             for i, f in enumerate(flames):
                 n = math.sin(t * 11 + seed + i * 2.1) * 0.5 + math.sin(t * 17 + i) * 0.3
                 f.setScale(15 + n * 2.5, 1, 26 + n * 6)
-                f.setPos(*P3(x + (i - 1) * 2.4 + n * 0.8, y + (i % 2) * 2, 40 + i + n * 1.5))
+                f.setPos(*P3(x + (i - 1) * 2.4 + n * 0.8, y + (i % 2) * 2, z0 + i + n * 1.5))
             gl.setColor(1.0, 0.55, 0.2, 0.5 + 0.1 * math.sin(t * 13 + seed))
         for m in self.motes:
             g, rx, rz, ry, seed = m

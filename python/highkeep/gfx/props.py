@@ -222,15 +222,10 @@ def cottage():
     rise = 30
     slope = math.degrees(math.atan2(rise, D / 2 + 6))
     ln = math.hypot(rise, D / 2 + 6)
-    for s in (-1, 1):
-        thatch.box((W + 14, ln + 1, 5.5), xf((0, s * (D / 4 + 3), 5 + H + rise / 2 - 1), (0, 0, 0)) if False else xf((0, s * (D / 4 + 3), 5 + H + rise / 2 - 1), (0, -s * 0, 0)) * xf(), uv=(2.5, 2.5)) if False else None
-    for s in (-1, 1):
-        thatch.box((W + 14, ln + 1, 5.5), xf((0, s * (D / 4 + 3), 5 + H + rise / 2 - 1), (0, 0, -0)) if False else xf((0, s * (D / 4 + 3), 5 + H + rise / 2 - 1), (0, 0, 0)) , uv=(2.5, 2.5))
     # roof slabs rotated about the X axis (ridge along X)
-    thatch.pos.clear(); thatch.nrm.clear(); thatch.uv.clear(); thatch.col.clear(); thatch.tris.clear()
     for s in (-1, 1):
         thatch.box((W + 14, ln + 1, 5.5), xf((0, s * (D / 4 + 3), 5 + H + rise / 2 - 1), (0, s * slope, 0)), uv=(2.5, 2.5))
-    thatch.cylinder(2.8, 2.8, W + 15, 6, xf((-(W + 15) / 2, 0, 5 + H + rise + 2), (0, 0, 0)) * xf(hpr=(0, 0, 0)))
+    thatch.cylinder(2.8, 2.8, W + 15, 6, xf((0, 0, 5 + H + rise + 2), (0, 0, 90)), origin="center")
     gable = [(-D / 2, 0), (D / 2, 0), (0, rise + 2)]
     for sx in (-1, 1):
         plaster.extrude(gable, 1.2, xf((sx * (W / 2 + 0.2), 0, 5 + H), (90, 0, 0)))
@@ -364,9 +359,128 @@ def arrow_slit():
     return _np([("crystal", m, [lambda n: n.setColor(0.18, 0.24, 0.42, 1)])], "slit")
 
 
+# ---------------------------------------------------------------- town props
+def _canopy(W, D, rise, c1, c2, mesh_h, ln_extra=8):
+    """Striped pitched awning with its ridge along X. Returns Mesh (top slabs)."""
+    m = Mesh()
+    slope = math.degrees(math.atan2(rise, D / 2 + ln_extra / 2))
+    ln = math.hypot(rise, D / 2 + ln_extra / 2)
+    for s in (-1, 1):
+        m.box((W, ln, 1.6), xf((0, s * (D / 4 + ln_extra / 4), mesh_h + rise / 2), (0, s * slope, 0)), uv=(0.5, 1.0))
+    return m
+
+
+def tent():
+    W, D, H = 64, 46, 40
+    post, trim, crate, goods = Mesh(), Mesh(), Mesh(), Mesh()
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            post.cylinder(1.3, 1.1, H, 6, xf((sx * (W / 2 - 2), sy * (D / 2 - 2), 0)))
+    m = _canopy(W + 6, D + 4, 20, "#b3402e", "#e8d8b0", H)
+    for sy in (-1, 1):
+        trim.box((W + 8, 1.4, 5), xf((0, sy * (D / 2 + 2.6), H - 1)), uv=(1, 1))
+    for sx in (-1, 1):
+        trim.box((1.4, D + 6, 3), xf((sx * (W / 2 + 3), 0, H + 5)))
+    crate.box((W - 14, 14, 16), xf((0, D / 2 - 14, 8)), uv=(1.2, 1.2))
+    for i in range(6):
+        goods.sphere(4.2, 8, 6, xf(((i - 2.5) * 8.5, D / 2 - 14, 19 + (i % 2))))
+    return _np([("wood_dark", post, []), (lambda n: n.setTexture(T.stripes("#b3402e", "#e8d8b0", 4)), m, []),
+                ("cloth_cream", trim, []), ("wood", crate, []), ("cloth_green", goods, [])], "tent")
+
+
+def tent_blue():
+    W, D, H = 64, 46, 40
+    post, trim, crate = Mesh(), Mesh(), Mesh()
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            post.cylinder(1.3, 1.1, H, 6, xf((sx * (W / 2 - 2), sy * (D / 2 - 2), 0)))
+    m = _canopy(W + 6, D + 4, 20, "#2f6a78", "#e3d6ab", H)
+    for sy in (-1, 1):
+        trim.box((W + 8, 1.4, 5), xf((0, sy * (D / 2 + 2.6), H - 1)))
+    crate.box((W - 10, 12, 14), xf((0, D / 2 - 14, 7)))
+    for i in range(3):
+        crate.box((10, 10, 10), xf((-20 + i * 20, -D / 2 + 12, 5), (i * 20, 0, 0)))
+    return _np([("wood_dark", post, []), (lambda n: n.setTexture(T.stripes("#2f6a78", "#e3d6ab", 4)), m, []),
+                ("cloth_cream", trim, []), ("wood", crate, [])], "tent_blue")
+
+
+def fountain():
+    stone_, water, rim = Mesh(), Mesh(), Mesh()
+    seg = 8
+    stone_.lathe([(40, 0), (40, 12), (36, 12), (36, 4)], seg, xf((0, 0, 0)), close_top=True, uvs=2.2)
+    rim.torus(38, 1.8, 8, 4, xf((0, 0, 12.5)))
+    stone_.cylinder(11, 8, 4, 8, xf((0, 0, 3)))
+    stone_.lathe([(7, 7), (4.5, 12), (3.6, 30), (9, 33), (11, 38)], 8, xf((0, 0, 0)), close_top=False, uvs=1.5)
+    stone_.cylinder(3, 2, 14, 6, xf((0, 0, 38)))
+    stone_.sphere(3.6, 8, 6, xf((0, 0, 54)))
+    water.cylinder(35, 35, 0.5, 16, xf((0, 0, 9.5)))
+    water.lathe([(0.1, 30.8), (10, 33.6), (11, 33)], 12, xf((0, 0, 0)), close_top=False)
+    return _np([(lambda n: n.setTexture(T.stone("#9a948a", 61, bricks=4)), stone_, []), ("gold", rim, []),
+                (lambda n: (n.setTexture(T.water()), n.setTransparency(TransparencyAttrib.MAlpha), n.setColorScale(0.7, 0.95, 1.1, 0.85)), water, [])], "fountain")
+
+
+def barrel():
+    wd, band = Mesh(), Mesh()
+    wd.lathe([(5.5, 0), (6.8, 6), (7.2, 11), (6.8, 16), (5.5, 22)], 10, xf((0, 0, 0)), uvs=1.0)
+    for z in (4, 18):
+        band.torus(6.2 + (0.9 if z == 18 else 0.0) * 0, 0.5, 10, 4, xf((0, 0, z)))
+    return _np([("wood", wd, []), ("iron", band, [])], "barrel")
+
+
+def crate():
+    wd, fr = Mesh(), Mesh()
+    wd.box((11, 11, 11), xf((0, 0, 5.5)), uv=(0.7, 0.7))
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            fr.box((1.4, 1.4, 11.4), xf((sx * 5.4, sy * 5.4, 5.5)))
+    return _np([("wood", wd, []), ("wood_dark", fr, [])], "crate")
+
+
+def forge():
+    st, hood, anvil, wd, coal = Mesh(), Mesh(), Mesh(), Mesh(), Mesh()
+    st.box((34, 26, 18), xf((0, 0, 9)), uv=(1.4, 1.4))
+    st.box((26, 18, 4), xf((0, -2, 20)))
+    hood.box((26, 6, 30), xf((0, -9, 40)))
+    st.box((12, 12, 42), xf((0, -8, 52)))
+    st.box((15, 15, 3), xf((0, -8, 75)))
+    coal.box((20, 12, 1), xf((0, 4, 18.5)))
+    anvil.box((14, 7, 5), xf((34, 6, 12)))
+    anvil.box((7, 5, 9), xf((34, 6, 6)))
+    anvil.box((6, 4, 3), xf((43, 6, 14)))
+    wd.cylinder(7, 6, 10, 8, xf((34, 6, 0)))
+    wd.box((4, 18, 10), xf((-26, 4, 5)))
+    return _np([(lambda n: n.setTexture(T.stone("#6f6a60", 71, bricks=5)), st, []), ("iron", hood, []), ("steel_dark", anvil, []),
+                ("wood", wd, []), ("gem", coal, [])], "forge")
+
+
+def well():
+    st, wd, roof = Mesh(), Mesh(), Mesh()
+    st.lathe([(13, 0), (13, 14), (10, 14), (10, 3)], 10, xf((0, 0, 0)), uvs=1.5)
+    for s in (-1, 1):
+        wd.box((2, 2, 34), xf((s * 11, 0, 17)))
+    wd.cylinder(1.2, 1.2, 24, 6, xf((-12, 0, 32), (0, 0, 90)))
+    for s in (-1, 1):
+        roof.box((30, 18, 2), xf((0, s * 7, 40), (0, s * 28, 0)), uv=(1.2, 1.2))
+    return _np([(lambda n: n.setTexture(T.stone("#8a8478", 81, cobbles=True)), st, []), ("wood", wd, []), (lambda n: n.setTexture(T.thatch()), roof, [])], "well")
+
+
+def cart():
+    wd, wheel = Mesh(), Mesh()
+    wd.box((40, 22, 3), xf((0, 0, 11)))
+    for sy in (-1, 1):
+        wd.box((40, 1.6, 9), xf((0, sy * 10.5, 15)))
+    for sx in (-1, 1):
+        wd.box((1.6, 22, 9), xf((sx * 19.5, 0, 15)))
+    wd.cylinder(0.9, 0.9, 30, 5, xf((-34, 0, 7), (0, 0, 0)))
+    for sy in (-1, 1):
+        wheel.torus(8, 1.3, 14, 4, xf((0, sy * 12.5, 9), (0, 90, 0)))
+        wheel.cylinder(1.6, 1.6, 3, 6, xf((0, sy * 12.5 - 1.5, 9), (0, 90, 0)))
+    return _np([("wood", wd, []), ("wood_dark", wheel, [])], "cart")
+
+
 BUILD = {"tree": tree, "pine": pine, "deadtree": deadtree, "grass": grass_tuft, "reeds": reeds, "rock": rock, "hay": hay_bale, "fence": fence,
          "logs": log_pile, "pillar": pillar, "column": column, "ruin": ruin, "lamp": lamp_post, "brazier": brazier_body, "cottage": cottage,
-         "bridge": bridge, "tower": tower, "portcullis": portcullis, "banner": banner_cloth, "throne": throne, "slit": arrow_slit}
+         "bridge": bridge, "tower": tower, "portcullis": portcullis, "banner": banner_cloth, "tent": tent, "tent_blue": tent_blue, "fountain": fountain, "barrel": barrel, "crate": crate, "forge": forge, "well": well, "cart": cart, "throne": throne, "slit": arrow_slit}
 
 
 def proto(kind, *args):

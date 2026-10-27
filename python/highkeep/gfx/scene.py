@@ -11,6 +11,8 @@ from . import materials as M
 from .post import Post
 from .world3d import World, THEMES, P3
 from ..data import RARITIES
+from ..world import build_town
+from types import SimpleNamespace
 from ..items import rarity_of
 
 TILT = math.radians(47)
@@ -34,6 +36,8 @@ class SceneRenderer:
         self.stage_root = NodePath("stage")
         self.stage_root.reparentTo(self.render)
         self.world = None
+        self.hub = None
+        self.hub_key = None
         self.player_vis = None
         self.enemy_vis = {}
         self.proj_vis, self.zone_vis, self.pick_vis, self.fx_vis = {}, {}, {}, {}
@@ -60,6 +64,14 @@ class SceneRenderer:
         if self.player_vis:
             self.player_vis.root.removeNode()
             self.player_vis = None
+        if getattr(self, "hub", None):
+            self.hub.vis.root.removeNode()
+        for v in getattr(self, "hub_npcs", []):
+            v[0].root.removeNode()
+        self.hub_npcs = []
+        self.hub = None
+        self.hub_key = None
+        self.base.camLens.setFilmOffset(0, 0)
         if self.world:
             self.render.clearLight()
             self.render.clearFog()
@@ -174,6 +186,79 @@ class SceneRenderer:
         self.sync_zones(game, t)
         self.sync_pickups(game, t)
         self.sync_fx(game)
+        if self.post:
+            self.post.update(t)
+
+
+    # ------------------------------------------------------------ town hub
+    HUB_NPCS = (("knight", (0.75, 0.8, 1.0), [(500, 560), (600, 700)], 0), ("knight", (1.0, 0.85, 0.7), [(1100, 560), (1180, 700)], 1),
+                ("ranger", (1.0, 0.95, 0.8), [(720, 470), (900, 470)], 2), ("mage", (0.9, 0.8, 1.0), [(1050, 640), (1050, 560)], 3),
+                ("ranger", (0.8, 1.0, 0.8), [(560, 760), (680, 700)], 4), ("knight", (0.9, 0.9, 0.9), [(800, 330), (880, 360)], 5))
+
+    def set_hub(self, cls, side=True):
+        """Show the town hub behind the title/camp UI. side=True shifts the plaza to the lower-left (camp), else centres it."""
+        self.clear()
+        L = build_town()
+        self.world = World(self.base, L, self.quality)
+        self.world.root.reparentTo(self.stage_root)
+        self.world.apply_lights(self.render)
+        th = self.world.theme
+        self.base.setBackgroundColor(*th["fog"])
+        if self.post:
+            self.post.set_grade(exposure=th["exp"], bloom=th["bloom"], vignette=th["vig"], grain=0.02, tint=(1.0, 0.94, 0.9), sat=1.06)
+        self.hub = SimpleNamespace(t=0.0, side=side, hero=SimpleNamespace(x=770, y=800, state="idle", dead=False, skill_anim=None, atk_t=-1, type="hero", skill_t=0, face=math.pi / 2, hit_t=9, dead_t=0, charge_phase=0, attach=None))
+        self.hub.vis = create_char(cls)
+        self.hub.vis.root.reparentTo(self.dyn)
+        self.hub_npcs = []
+        for kind, col, way, i in self.HUB_NPCS:
+            v = create_char(kind)
+            v.root.reparentTo(self.dyn)
+            v.root.setColorScale(*col, 1)
+            e = SimpleNamespace(x=way[0][0], y=way[0][1], state="idle", dead=False, skill_anim=None, atk_t=-1, type="npc", skill_t=0, face=0.0, hit_t=9, dead_t=0, charge_phase=0, attach=None, way=way, wi=0, wait=i * 1.3)
+            self.hub_npcs.append((v, e))
+        self.cam_init = False
+
+    def render_hub(self, dt):
+        h = self.hub
+        if not h or not self.world:
+            return
+        h.t += dt
+        t = h.t
+        fw, fh = self.base.camLens.getFilmSize()
+        if h.side:
+            self.base.camLens.setFilmOffset(0.28 * fw, 0.2 * fh)
+        else:
+            self.base.camLens.setFilmOffset(0, 0)
+        tilt = math.radians(42)
+        cx, cy = 800 + math.sin(t * 0.12) * 18, 610
+        dist = self.cam_dist * 1.55
+        self.base.camera.setPos(cx, -cy - math.cos(tilt) * dist, math.sin(tilt) * dist)
+        self.base.camera.lookAt(cx, -cy, 0)
+        if self.world.hi:
+            self.world.sun_np.setPos(cx - 300, -cy - 220, 520)
+            self.world.sun_np.lookAt(cx, -cy, 0)
+        self.world.update(t, dt, h.hero, (cx, -cy))
+        hero = h.hero
+        h.vis.root.setPos(*P3(hero.x, hero.y, 0))
+        h.vis.root.setH(hd(hero.face))
+        h.vis.update(hero, dt, t, True)
+        for v, e in self.hub_npcs:
+            if e.wait > 0:
+                e.wait -= dt
+                e.state = "idle"
+            else:
+                tx, ty = e.way[e.wi]
+                d = math.hypot(tx - e.x, ty - e.y)
+                if d < 6:
+                    e.wi = (e.wi + 1) % len(e.way)
+                    e.wait = 3 + (e.wi * 1.7) % 4
+                else:
+                    e.x += (tx - e.x) / d * 38 * dt
+                    e.y += (ty - e.y) / d * 38 * dt
+                    e.face = math.atan2(ty - e.y, tx - e.x)
+            v.root.setPos(*P3(e.x, e.y, 0))
+            v.root.setH(hd(e.face))
+            v.update(e, dt, t, False)
         if self.post:
             self.post.update(t)
 

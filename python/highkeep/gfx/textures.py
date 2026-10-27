@@ -331,6 +331,20 @@ def flagstone(base="#5e5a55", seed=10):
     return cached(f"flag_{base[1:]}_{seed}", paint)
 
 
+def stripes(c1, c2, n=4):
+    def paint():
+        a, b = hexc(c1), hexc(c2)
+        nz = noise_field(128, 128, 8, 3, 41)
+        w = 128 // (n * 2)
+
+        def f(x, y, i):
+            c = a if (x // w) % 2 == 0 else b
+            k = 0.78 + 0.35 * nz[i] + (0.06 if (x * 5 + y * 3) % 4 < 2 else 0)
+            return (c[0] * k, c[1] * k, c[2] * k)
+        return pixels(128, 128, f)
+    return cached(f"stripes_{c1[1:]}_{c2[1:]}_{n}", paint)
+
+
 def thatch():
     def paint():
         img = pixels(128, 128, lambda x, y, i: (0.52, 0.42, 0.22))
@@ -601,6 +615,7 @@ THEMES = {
     "bridge": {"base": "#587a30", "a": "#799a3a", "b": "#44642a", "road": "#86704c", "edge": "#506230"},
     "marsh": {"base": "#3d4a34", "a": "#4f5d3c", "b": "#2c3828", "road": "#5d513a", "edge": "#3e4a30"},
     "gate": {"base": "#68803a", "a": "#7f9444", "b": "#52682e", "road": "#7c735c", "edge": "#5b6038"},
+    "town": {"base": "#5f8530", "a": "#80a03c", "b": "#456a28", "road": "#8a7452", "edge": "#5b6a30"},
     "hall": {"base": "#4a4540"}, "vault": {"base": "#3a3942"},
 }
 
@@ -664,7 +679,7 @@ def _paint_ground(L, quality="high"):
         x, y = int(R() * w), int(R() * h)
         px = img.getXel(x, y)
         img.setXel(x, y, *mix(px, c, 0.4))
-    if L.theme in ("fields", "wood", "bridge", "gate"):
+    if L.theme in ("fields", "wood", "bridge", "gate", "town"):
         blobs((0.95, 0.9, 0.45), 40, 20 * sx * 3, 50 * sx * 3, 0.1)       # sunlit patches
         for _ in range(260 if L.theme != "wood" else 120):
             fc = ((1.0, 0.95, 0.4), (0.95, 0.95, 0.95), (0.9, 0.35, 0.45), (0.55, 0.5, 0.95))[int(R() * 4)]
@@ -716,6 +731,37 @@ def _paint_ground(L, quality="high"):
                 x = x0 + (x1 - x0) * t + (R() - 0.5) * L.road_w * 1.7
                 y = y0 + (y1 - y0) * t + (R() - 0.5) * L.road_w * 1.7
                 spot(p, x * sx, y * sy, 1.0 + R() * 1.4, (0.8, 0.72, 0.56) if R() < 0.5 else (0.26, 0.19, 0.11), 0.5, False)
+    if L.theme == "town":
+        road = hexc(theme["road"])
+        for pts in L.paths:
+            for width, col, a in ((86, hexc(theme["edge"]), 0.35), (74, (0.25, 0.19, 0.11), 0.6), (62, road, 1.0)):
+                p.setPen(PNMBrush.makeSpot(col + (a,), width * sx / 2, True))
+                p.drawLine(pts[0][0] * sx, pts[0][1] * sy, pts[0][0] * sx, pts[0][1] * sy)
+                for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+                    p.drawLine(x0 * sx, y0 * sy, x1 * sx, y1 * sy)
+        cx, cy, cr = L.plaza
+        tile = PNMImage()
+        stone("#a39d8e", 53, cobbles=True).store(tile)
+        tw = tile.getXSize()
+        step = max(1, int(1 / sx))
+        for yy in range(int((cy - cr - 14) * sy), int((cy + cr + 14) * sy)):
+            for xx in range(int((cx - cr - 14) * sx), int((cx + cr + 14) * sx)):
+                if not (0 <= xx < w and 0 <= yy < h):
+                    continue
+                d = math.hypot(xx / sx - cx, yy / sy - cy)
+                if d > cr + 12:
+                    continue
+                c = tuple(max(0.0, v) ** 0.4545 * 1.1 for v in tile.getXel((xx * 3) % tw, (yy * 3) % tw))
+                if d > cr:
+                    c = (c[0] * 0.55, c[1] * 0.52, c[2] * 0.48)          # dark kerb
+                elif cr - 14 < d <= cr:
+                    c = (c[0] * 1.15, c[1] * 1.12, c[2] * 1.05)
+                elif 70 < d < 86:
+                    c = (c[0] * 0.72, c[1] * 0.7, c[2] * 0.66)           # inner ring
+                img.setXel(xx, yy, *c)
+        for _ in range(120):
+            a, rr = R() * math.tau, R() * (cr - 10)
+            spot(p, (cx + math.cos(a) * rr) * sx, (cy + math.sin(a) * rr) * sy, 2 + R() * 3, (0.3, 0.45, 0.2), 0.3)
     if L.theme == "gate":
         st = stone("#847f72", 31, cobbles=True)
         tile = PNMImage()
