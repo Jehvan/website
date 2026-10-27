@@ -478,9 +478,72 @@ def cart():
     return _np([("wood", wd, []), ("wood_dark", wheel, [])], "cart")
 
 
+def campfire():
+    st, lg, ash = Mesh(), Mesh(), Mesh()
+    for i in range(8):
+        a = i / 8 * math.tau
+        st.sphere(3.0, 6, 4, xf((math.cos(a) * 12, math.sin(a) * 12, 2.0), scale=(1.2, 1, 0.8)))
+    for i in range(4):
+        lg.cylinder(1.8, 1.6, 16, 6, xf((0, 0, 3.0), (i * 45 + 10, 0, 74)))
+    ash.cylinder(9, 9, 0.8, 10, xf((0, 0, 0.6)))
+    return _np([(lambda n: n.setTexture(T.rock()), st, []), ("wood_dark", lg, []), ("gem", ash, [])], "campfire")
+
+
+def standard():
+    """Free-standing warband standard: tall pole, crossbar, tattered black and red cloth."""
+    pole, cloth, red, tip = Mesh(), Mesh(), Mesh(), Mesh()
+    pole.cylinder(1.5, 1.1, 70, 6)
+    pole.box((16, 1.2, 1.2), xf((0, 0, 62)))
+    tip.cone(2.2, 7, 5, xf((0, 0, 70)))
+    for i in range(3):
+        cloth.box((4.6, 0.5, 26 - i * 4), xf((-5.2 + i * 5.2, 0.4, 48 - i * 2.0 - (26 - i * 4) / 2 + 12)))
+    red.box((4.6, 0.55, 5), xf((0, 0.45, 56)))
+    red.box((4.6, 0.55, 5), xf((5.2, 0.45, 56)))
+    return _np([("wood_dark", pole, []), ("iron", tip, []), (lambda n: (n.setTexture(T.cloth("#1d1b22", 5)), n.setTwoSided(True)), cloth, []),
+                (lambda n: (n.setTexture(T.cloth("#7a1f26", 2)), n.setTwoSided(True)), red, [])], "standard")
+
+
+def camp_tent():
+    cv, pole = Mesh(), Mesh()
+    W, D, H = 56, 46, 34
+    hw, hd = W / 2, D / 2
+    cv.quad((-hw, -hd, 0), (hw, -hd, 0), (hw, 0, H), (-hw, 0, H), uv=((0, 0), (2, 0), (2, 1.2), (0, 1.2)), double=True)
+    cv.quad((hw, hd, 0), (-hw, hd, 0), (-hw, 0, H), (hw, 0, H), uv=((0, 0), (2, 0), (2, 1.2), (0, 1.2)), double=True)
+    for sx in (-1, 1):
+        cv.quad((sx * hw, -hd, 0), (sx * hw, hd, 0), (sx * hw, 0, H), (sx * hw, 0, H), uv=((0, 0), (1, 0), (0.5, 1), (0.5, 1)), double=True)
+    for sx in (-1, 1):
+        pole.cylinder(1.0, 0.8, H + 7, 5, xf((sx * (hw + 1), 0, 0)))
+    pole.cylinder(0.7, 0.7, W + 6, 5, xf((0, 0, H + 0.4), (0, 0, 90)), origin="center")
+    return _np([(lambda n: (n.setTexture(T.cloth("#7d6f55", 12)), n.setTwoSided(True)), cv, []), ("wood_dark", pole, [])], "camp_tent")
+
+
+def palisade():
+    wd, tp = Mesh(), Mesh()
+    R = Rng(41)
+    for i in range(9):
+        h = 38 + R() * 10
+        wd.cylinder(2.3, 2.0, h, 6, xf((-32 + i * 8, (R() - 0.5) * 1.5, 0)))
+        tp.cone(2.1, 7, 6, xf((-32 + i * 8, 0, h)))
+    wd.box((74, 1.6, 2.2), xf((0, 2.4, 16)))
+    wd.box((74, 1.6, 2.2), xf((0, 2.4, 30)))
+    return _np([(lambda n: n.setTexture(T.bark("#4a3a2c", 5)), wd, []), (lambda n: n.setTexture(T.bark("#4a3a2c", 5)), tp, [])], "palisade")
+
+
+def weapon_rack():
+    wd, st = Mesh(), Mesh()
+    for s in (-1, 1):
+        wd.cylinder(1.3, 1.3, 26, 5, xf((s * 12, 0, 0)))
+    wd.box((28, 1.6, 1.6), xf((0, 0, 22)))
+    wd.box((28, 1.6, 1.6), xf((0, 0, 11)))
+    for i in range(5):
+        st.cylinder(0.5, 0.5, 34, 4, xf((-10 + i * 5, 1.6, 2), (0, (i - 2) * 4, 0)))
+        st.cone(0.9, 5, 4, xf((-10 + i * 5 + (i - 2) * 2.3, 1.6, 36)))
+    return _np([("wood", wd, []), ("steel", st, [])], "rack")
+
+
 BUILD = {"tree": tree, "pine": pine, "deadtree": deadtree, "grass": grass_tuft, "reeds": reeds, "rock": rock, "hay": hay_bale, "fence": fence,
          "logs": log_pile, "pillar": pillar, "column": column, "ruin": ruin, "lamp": lamp_post, "brazier": brazier_body, "cottage": cottage,
-         "bridge": bridge, "tower": tower, "portcullis": portcullis, "banner": banner_cloth, "tent": tent, "tent_blue": tent_blue, "fountain": fountain, "barrel": barrel, "crate": crate, "forge": forge, "well": well, "cart": cart, "throne": throne, "slit": arrow_slit}
+         "bridge": bridge, "tower": tower, "portcullis": portcullis, "banner": banner_cloth, "tent": tent, "tent_blue": tent_blue, "fountain": fountain, "barrel": barrel, "crate": crate, "forge": forge, "well": well, "cart": cart, "campfire": campfire, "standard": standard, "camp_tent": camp_tent, "palisade": palisade, "rack": weapon_rack, "throne": throne, "slit": arrow_slit}
 
 
 def proto(kind, *args):

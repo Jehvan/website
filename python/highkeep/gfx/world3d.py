@@ -139,9 +139,20 @@ class World:
             self.make_brazier(b["x"], b["y"])
         if L.river:
             self.make_river()
-        for kind in ("fountain", "tent", "tent_blue", "barrel", "crate", "well", "cart"):
+        for kind in ("fountain", "tent", "tent_blue", "barrel", "crate", "well", "cart", "standard", "camp_tent", "palisade", "rack"):
             if by(kind):
                 self.place(kind, by(kind), flatten=False)
+        for f in by("campfire"):
+            self.single("campfire", f["x"], f["y"], f["rot"], f["s"])
+            flames = []
+            for i in range(3):
+                fl = FX.flame(13, 22)
+                fl.reparentTo(self.root)
+                fl.setPos(*P3(f["x"] + (i - 1) * 3, f["y"], 8 + i))
+                flames.append(fl)
+            gl = self.glow(f["x"], f["y"], 14, (1.0, 0.5, 0.18), 120, 0.5)
+            self.fires.append((flames, gl, f["x"], f["y"], random.random() * 10, 8))
+            self.lights.append((f["x"], f["y"]))
         for f in by("forge"):
             self.single("forge", f["x"], f["y"], f["rot"], f["s"])
             flames = []

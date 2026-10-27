@@ -127,6 +127,29 @@ def build_layout(theme, seed=1, boss=False, floor=0):
                 occupied.append((x, y, r * s * 0.5))
             placed += 1
 
+
+    def camp(cands, tents=2):
+        """Raider camp: campfire ringed by tents, a standard and a weapon rack; first free candidate wins."""
+        tries = list(cands) + [(150 + R() * 1300, 150 + R() * 850) for _ in range(120)]
+        for cx, cy in tries:
+            if not free(cx, cy, 90, 70):
+                continue
+            prop("campfire", cx, cy, s=1.3)
+            L.obstacles.append(("c", cx, cy, 16)); occupied.append((cx, cy, 90))
+            L.lights.append((cx, cy))
+            for i in range(tents):
+                a = i * (math.tau / tents) + 0.6 + R() * 0.3
+                tx, ty = cx + math.cos(a) * 62, cy + math.sin(a) * 52
+                prop("camp_tent", tx, ty, rot=a + math.pi / 2, s=1.15)
+                L.obstacles.append(("c", tx, ty, 30))
+            sa = 0.6 + math.pi
+            prop("standard", cx + math.cos(sa) * 50, cy + math.sin(sa) * 50, rot=R() * 6, s=1.2)
+            L.obstacles.append(("c", cx + math.cos(sa) * 50, cy + math.sin(sa) * 50, 6))
+            prop("rack", cx + 34, cy - 40, rot=0.3, s=1.2)
+            prop("barrel", cx - 30, cy + 38, s=1.3); prop("crate", cx - 18, cy + 46, s=1.3)
+            return True
+        return False
+
     def rect(cx, cy, w, h, rot=0.0):
         L.obstacles.append(("r", cx, cy, w, h, rot))
 
@@ -153,6 +176,7 @@ def build_layout(theme, seed=1, boss=False, floor=0):
             for i in range(ln):
                 prop("fence", fx + (0 if vert else i * 34), fy + (i * 34 if vert else 0), rot=math.pi / 2 if vert else 0, s=1)
             rect(fx + (0 if vert else ln * 17 - 17), fy + (ln * 17 - 17 if vert else 0), 8 if vert else ln * 34, ln * 34 if vert else 8)
+        camp([(1300, 300), (1280, 950), (500, 160), (700, 980)])
         scatter("hay", 9, r=18, clear=70)
         scatter("tent", 2, r=34, clear=90, s0=1.2, s1=1.4)
         scatter("tent_blue", 1, r=34, clear=90, s0=1.2, s1=1.4)
@@ -167,6 +191,7 @@ def build_layout(theme, seed=1, boss=False, floor=0):
         L.road = sine_road(lambda x: 560 + 220 * math.sin(x / 210 + 2.0))
         L.start = (110, L.road[2][1])
         scatter("tree", 105, r=16, clear=62, s0=0.9, s1=1.7, pine=lambda Rn: Rn() < 0.4)
+        camp([(1250, 250), (1300, 900), (480, 900), (500, 220)], 3)
         scatter("logs", 7, r=18, clear=60)
         scatter("rock", 14, r=13, clear=45)
         scatter("lamp", 3, r=6, collide=False)
@@ -186,6 +211,11 @@ def build_layout(theme, seed=1, boss=False, floor=0):
                 prop("lamp", lx, ly, s=1)
         prop("cottage", 540, 330, rot=0.2, s=1.1); rect(540, 330, 120, 84, 0.2); block(540, 330, 90)
         prop("cottage", 1090, 840, rot=-0.2, s=1.0); rect(1090, 840, 120, 84, -0.2); block(1090, 840, 90)
+        for px in (668, 932):
+            for py in (by - 96, by + 96):
+                prop("palisade", px, py, rot=math.pi / 2, s=1.3)
+                rect(px, py, 14, 96)
+        camp([(330, 870), (1300, 280), (1330, 880), (330, 250)], 2)
         scatter("tree", 34, r=15, clear=70, s0=0.9, s1=1.5)
         scatter("rock", 14, r=12, clear=50)
         scatter("fence", 8, clear=70, collide=False)
@@ -199,6 +229,7 @@ def build_layout(theme, seed=1, boss=False, floor=0):
                 L.pools.append({"x": x, "y": y, "r": r})
                 L.obstacles.append(("c", x, y, r * 0.9))
                 occupied.append((x, y, r))
+        camp([(1250, 220), (1330, 950), (400, 950), (420, 200)], 2)
         for _ in range(4):
             x, y = 300 + R() * 1000, 150 + R() * 850
             if not free(x, y, 70, 90):
@@ -231,6 +262,7 @@ def build_layout(theme, seed=1, boss=False, floor=0):
         scatter("rock", 10, r=12, clear=55)
         scatter("tree", 14, r=15, clear=70, area={"x0": 30, "y0": 450, "x1": 400, "y1": 1120})
         scatter("tree", 14, r=15, clear=70, area={"x0": 1100, "y0": 450, "x1": 1570, "y1": 1120})
+        camp([(280, 700), (1330, 760), (260, 520)], 2)
         scatter("hay", 3, r=18, clear=70)
         scatter("tent_blue", 2, r=34, clear=90, s0=1.2, s1=1.4, area={"x0": 560, "y0": 420, "x1": 1050, "y1": 1100})
         scatter("barrel", 8, r=8, clear=60, s0=1.2, s1=1.5)

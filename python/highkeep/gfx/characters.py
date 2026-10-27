@@ -51,6 +51,16 @@ def heater_shield(rig, joint="elbowL"):
     g.sphere(1.9, 10, 6, xf((-5.3, 0.6, -5.0), (0, 0, 0), (0.6, 1, 1)))
 
 
+def war_standard(rig, h=30, cloth="cloth_black"):
+    """Tattered warband banner on a pole strapped to the back."""
+    rig.part("spine", "wood_dark").cylinder(0.7, 0.6, h, 6, xf((3.0, -6.4, 2.0), (0, 8, 0)))
+    rig.part("spine", "iron").cone(1.3, 3.2, 5, xf((3.0 + h * 0.14, -6.4, 2.0 + h * 0.99)))
+    f = rig.part("spine", cloth)
+    for i in range(4):
+        f.box((0.4, 8.0 - i * 1.3, 4.0), xf((3.0 + h * 0.12, -6.4 - (4.5 - i * 0.6), 2.0 + h * 0.94 - i * 3.6 - 2.0), (0, 0, (i % 2) * 6 - 3)))
+    rig.part("spine", "cloth_red").box((0.45, 3.2, 3.2), xf((3.1 + h * 0.12, -6.4 - 3.6, 2.0 + h * 0.84)))
+
+
 def quiver(rig, joint="chest"):
     ms = rig.part(joint, "leather_dark")
     m = xf((2.8, -5.4, 8.0), (0, 18, -20))
@@ -132,7 +142,9 @@ def build_knight():
     rig.part("head", "dark").box((0.9, 0.5, 0.45), xf((0, 4.9, 5.4)))
     rig.part("head", "gold").torus(4.9, 0.35, 14, 4, xf((0, 0, 8.5), (0, 0, 0), (0.98, 1.06, 1)))
     rig.part("head", "chain").lathe([(4.6, 5.2), (5.6, -1.6)], 12, xf((0, -0.3, 0), (0, 0, 0), (1, 1.05, 1)), close_top=False, close_bottom=False, uvs=1.2)
-    rig.part("head", "cloth_red").box((0.8, 6, 3.2), xf((0, -3.8, 11.5), (0, 24, 0)))
+    for i in range(5):                                                                                 # plumed crest
+        rig.part("head", "cloth_red").box((1.0, 3.2, 3.4), xf((0, 2.4 - i * 2.2, 12.6 + (1.3 - abs(i - 1.6) * 0.45) * 1.8 - i * 0.5), (0, 12 + i * 10, 0)))
+    rig.part("head", "gold").box((1.2, 9, 0.7), xf((0, 0, 12.1)))
     # --- weapons
     sword(rig)
     heater_shield(rig)
@@ -310,6 +322,7 @@ def build_grunt():
     for s in (-1, 1):
         rig.part("head", "bone").cone(1.5, 8.0, 7, xf((s * 5.4, 0, 9.0), (0, 0, -s * 55)))
     club(rig, s=1.0)
+    war_standard(rig)
     rig.finish()
     return rig, dict(style="club", idle_r=(0.3, 1.0, 0.0), idle_l=(0.3, 0.7, 0.0), run_ref=80)
 
