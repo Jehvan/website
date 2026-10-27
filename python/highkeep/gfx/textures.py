@@ -662,7 +662,7 @@ def paint_ground(L, quality="high"):
 
 
 def _paint_ground(L, quality="high"):
-    S = 0.4 if quality == "low" else 0.72
+    S = {"low": 0.4, "high": 0.72, "ultra": 1.0}.get(quality, 0.72)
     w, h = int(L.w * S), int(L.h * S)
     img = PNMImage(w, h, 3)
     theme = THEMES[L.theme]
@@ -720,7 +720,7 @@ def _paint_ground(L, quality="high"):
             fc = ((1.0, 0.95, 0.4), (0.95, 0.95, 0.95), (0.9, 0.35, 0.45), (0.55, 0.5, 0.95))[int(R() * 4)]
             spot(p, R() * w, R() * h, 0.9 + R() * 0.9, fc, 0.85, False)
     if L.theme in ("fields", "wood", "bridge", "gate", "town", "marsh"):                       # hand-painted grass strokes
-        n = int(w * h / (110 if quality == "high" else 170))
+        n = int(w * h / (170 if quality == "low" else 110))
         for _ in range(n):
             x, y = R() * w, R() * h
             c = mix(A if R() < 0.55 else B, (0.95, 0.95, 0.5), 0.15 * R())
