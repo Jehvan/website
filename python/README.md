@@ -58,3 +58,9 @@ some detail.
 | `tests/test_logic.py` | headless tests: `python -m unittest discover -s tests` |
 
 The original browser version (Vite + three.js) still lives in `../src`.
+
+## Look
+
+The art direction follows a warm, sunlit painted-fantasy style: low 47° camera, strong warm sun with soft shadow maps, saturated grass with flowers,
+a 3D town hub (cobbled plaza, fountain, market tents, forge, wandering villagers) behind the title and camp screens, and an action bar with glass
+health/mana orbs. Everything is generated procedurally; there are no image assets.

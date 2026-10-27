@@ -53,7 +53,7 @@ def tree(variant=0):
     for i in range(3):
         a = i * 2.1 + R()
         trunk.cylinder(1.5, 0.6, 18, 5, xf((math.cos(a) * 3, math.sin(a) * 3, 28 + i * 3), (math.degrees(a), 0, 52)))
-    leafcols = ["#6f7f32", "#8a8636", "#5f7230"]
+    leafcols = ["#4f8a2c", "#69a233", "#3f7426"]
     for c in range(7):
         a = c * 0.9 + R() * 0.4
         r = 4 + R() * 12
