@@ -134,8 +134,8 @@ class SceneRenderer:
         p, L, t = game.p, game.L, game.time
         # camera
         asp = self.W / self.H
-        half_w = min(800.0, self.cam_dist * math.tan(math.radians(19)) * asp * 0.6)
-        half_h = min(575.0, self.cam_dist * 0.35)
+        half_w = min(800.0, self.cam_dist * math.tan(math.radians(19)) * asp * 0.8)
+        half_h = min(575.0, self.cam_dist * 0.42)
         tx = max(half_w, min(L.w - half_w, p.x))
         ty = max(half_h, min(L.h - half_h, p.y))
         if not self.cam_init:

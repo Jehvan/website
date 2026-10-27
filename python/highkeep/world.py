@@ -154,6 +154,12 @@ def build_layout(theme, seed=1, boss=False, floor=0):
                 prop("fence", fx + (0 if vert else i * 34), fy + (i * 34 if vert else 0), rot=math.pi / 2 if vert else 0, s=1)
             rect(fx + (0 if vert else ln * 17 - 17), fy + (ln * 17 - 17 if vert else 0), 8 if vert else ln * 34, ln * 34 if vert else 8)
         scatter("hay", 9, r=18, clear=70)
+        scatter("tent", 2, r=34, clear=90, s0=1.2, s1=1.4)
+        scatter("tent_blue", 1, r=34, clear=90, s0=1.2, s1=1.4)
+        scatter("barrel", 9, r=8, clear=60, s0=1.2, s1=1.5)
+        scatter("crate", 7, r=8, clear=60, s0=1.2, s1=1.5)
+        scatter("cart", 2, r=22, clear=80, s0=1.3, s1=1.5)
+        scatter("well", 1, r=16, clear=90, s0=1.4, s1=1.5)
         scatter("tree", 16, r=15, clear=70, s0=0.9, s1=1.4)
         scatter("rock", 12, r=12, clear=50)
         scatter("lamp", 4, r=6, collide=False)
@@ -226,6 +232,10 @@ def build_layout(theme, seed=1, boss=False, floor=0):
         scatter("tree", 14, r=15, clear=70, area={"x0": 30, "y0": 450, "x1": 400, "y1": 1120})
         scatter("tree", 14, r=15, clear=70, area={"x0": 1100, "y0": 450, "x1": 1570, "y1": 1120})
         scatter("hay", 3, r=18, clear=70)
+        scatter("tent_blue", 2, r=34, clear=90, s0=1.2, s1=1.4, area={"x0": 560, "y0": 420, "x1": 1050, "y1": 1100})
+        scatter("barrel", 8, r=8, clear=60, s0=1.2, s1=1.5)
+        scatter("crate", 6, r=8, clear=60, s0=1.2, s1=1.5)
+        scatter("cart", 2, r=22, clear=80, s0=1.3, s1=1.5)
         scatter("lamp", 5, r=6, collide=False)
     elif theme == "hall":
         L.indoor = True

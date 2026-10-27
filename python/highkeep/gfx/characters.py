@@ -441,7 +441,7 @@ def build_regent():
 
 BUILDERS = {"knight": build_knight, "ranger": build_ranger, "mage": build_mage, "grunt": build_grunt, "bowman": build_bowman,
             "brute": build_brute, "regent": build_regent}
-SCALES = {"brute": 1.45, "regent": 1.9}
+SCALES = {"knight": 1.2, "ranger": 1.2, "mage": 1.2, "grunt": 1.15, "bowman": 1.15, "brute": 1.65, "regent": 2.1}
 
 _templates = {}
 

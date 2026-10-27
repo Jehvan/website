@@ -92,7 +92,7 @@ class World:
             ground.setTexScale(ts, 46, 32)
         ground.reparentTo(self.root)
         base = T.hexc(T.THEMES[L.theme]["base"])
-        lin = tuple((c * 0.7) ** 2.2 for c in base) + (1,)
+        lin = tuple((c * 0.42) ** 2.2 for c in base) + (1,)
         sk = Mesh().box((L.w * 5, L.h * 5, 2), xf((L.w / 2, -L.h / 2, -2.5)), color=lin)
         skirt = sk.build("skirt")
         skirt.reparentTo(self.root)
@@ -139,20 +139,20 @@ class World:
             self.make_brazier(b["x"], b["y"])
         if L.river:
             self.make_river()
-        if L.theme == "town":
-            for kind in ("fountain", "tent", "tent_blue", "barrel", "crate", "well", "cart"):
+        for kind in ("fountain", "tent", "tent_blue", "barrel", "crate", "well", "cart"):
+            if by(kind):
                 self.place(kind, by(kind), flatten=False)
-            for f in by("forge"):
-                self.single("forge", f["x"], f["y"], f["rot"], f["s"])
-                flames = []
-                for i in range(3):
-                    fl = FX.flame(14, 24)
-                    fl.reparentTo(self.root)
-                    fl.setPos(*P3(f["x"] + (i - 1) * 4 * f["s"], f["y"] + 3 * f["s"], 24 * f["s"] + i))
-                    flames.append(fl)
-                gl = self.glow(f["x"], f["y"] + 4 * f["s"], 30 * f["s"], (1.0, 0.5, 0.18), 110, 0.55)
-                self.fires.append((flames, gl, f["x"], f["y"] + 3 * f["s"], random.random() * 10, 24 * f["s"]))
-                self.lights.append((f["x"], f["y"]))
+        for f in by("forge"):
+            self.single("forge", f["x"], f["y"], f["rot"], f["s"])
+            flames = []
+            for i in range(3):
+                fl = FX.flame(14, 24)
+                fl.reparentTo(self.root)
+                fl.setPos(*P3(f["x"] + (i - 1) * 4 * f["s"], f["y"] + 3 * f["s"], 24 * f["s"] + i))
+                flames.append(fl)
+            gl = self.glow(f["x"], f["y"] + 4 * f["s"], 30 * f["s"], (1.0, 0.5, 0.18), 110, 0.55)
+            self.fires.append((flames, gl, f["x"], f["y"] + 3 * f["s"], random.random() * 10, 24 * f["s"]))
+            self.lights.append((f["x"], f["y"]))
         if L.theme == "gate":
             for w in by("wall"):
                 self.single("wall", w["x"], w["y"], args=(w["w"],))
