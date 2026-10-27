@@ -14,11 +14,11 @@ from ..world import Rng, dist_to_road
 
 # (sun colour, sun heading/pitch, ambient, fog colour, fog density, background, exposure, bloom, vignette)
 THEMES = {
-    "fields": dict(sun=(2.1, 1.65, 1.1), hp=(-35, -34), amb=(0.26, 0.3, 0.4), fog=(0.52, 0.55, 0.6), dens=0.00035, exp=1.15, bloom=0.5, vig=1.0),
-    "wood": dict(sun=(2.0, 1.7, 1.1), hp=(-30, -40), amb=(0.3, 0.38, 0.36), fog=(0.26, 0.32, 0.28), dens=0.0008, exp=1.3, bloom=0.5, vig=1.2),
-    "bridge": dict(sun=(2.2, 1.6, 0.95), hp=(-50, -28), amb=(0.26, 0.3, 0.4), fog=(0.5, 0.52, 0.54), dens=0.0004, exp=1.15, bloom=0.55, vig=1.05),
-    "marsh": dict(sun=(1.6, 1.2, 0.75), hp=(-20, -20), amb=(0.2, 0.25, 0.23), fog=(0.26, 0.3, 0.24), dens=0.0016, exp=1.2, bloom=0.6, vig=1.3),
-    "gate": dict(sun=(2.0, 1.5, 1.0), hp=(-30, -24), amb=(0.26, 0.28, 0.34), fog=(0.42, 0.42, 0.42), dens=0.0006, exp=1.15, bloom=0.55, vig=1.15),
+    "fields": dict(sun=(2.6, 2.1, 1.3), hp=(-40, -38), amb=(0.42, 0.46, 0.5), fog=(0.4, 0.5, 0.3), dens=0.0002, exp=1.25, bloom=0.5, vig=0.6),
+    "wood": dict(sun=(2.4, 2.0, 1.2), hp=(-30, -40), amb=(0.4, 0.5, 0.44), fog=(0.3, 0.38, 0.3), dens=0.0005, exp=1.35, bloom=0.5, vig=0.8),
+    "bridge": dict(sun=(2.6, 2.0, 1.2), hp=(-50, -28), amb=(0.42, 0.46, 0.52), fog=(0.4, 0.5, 0.3), dens=0.0002, exp=1.25, bloom=0.55, vig=0.7),
+    "marsh": dict(sun=(1.9, 1.5, 0.9), hp=(-20, -20), amb=(0.32, 0.4, 0.34), fog=(0.34, 0.4, 0.3), dens=0.0011, exp=1.3, bloom=0.6, vig=1.0),
+    "gate": dict(sun=(2.5, 1.9, 1.2), hp=(-30, -24), amb=(0.4, 0.42, 0.48), fog=(0.5, 0.5, 0.48), dens=0.0004, exp=1.25, bloom=0.55, vig=0.8),
     "hall": dict(sun=(0.9, 1.0, 1.5), hp=(-20, -55), amb=(0.6, 0.56, 0.66), fog=(0.05, 0.04, 0.05), dens=0.0008, exp=1.6, bloom=0.8, vig=1.5),
     "vault": dict(sun=(0.8, 0.95, 1.4), hp=(-20, -55), amb=(0.55, 0.58, 0.78), fog=(0.03, 0.03, 0.05), dens=0.001, exp=1.6, bloom=0.8, vig=1.6),
 }
@@ -93,7 +93,7 @@ class World:
         base = T.hexc(T.THEMES[L.theme]["base"])
         sk = Mesh().box((L.w * 5, L.h * 5, 2), xf((L.w / 2, -L.h / 2, -2.5)))
         skirt = sk.build("skirt")
-        skirt.setColor(base[0] * 0.32, base[1] * 0.32, base[2] * 0.3, 1)
+        skirt.setColor(base[0] * 0.6, base[1] * 0.6, base[2] * 0.55, 1)
         skirt.reparentTo(self.root)
 
         def by(kind):

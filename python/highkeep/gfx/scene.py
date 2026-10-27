@@ -13,7 +13,7 @@ from .world3d import World, THEMES, P3
 from ..data import RARITIES
 from ..items import rarity_of
 
-TILT = math.radians(56)
+TILT = math.radians(47)
 
 
 class NP(NodePath):
@@ -75,7 +75,7 @@ class SceneRenderer:
         self.base.setBackgroundColor(*th["fog"])
         if self.post:
             self.post.set_grade(exposure=th["exp"], bloom=th["bloom"], vignette=th["vig"], grain=0.02,
-                                tint=(0.92, 0.96, 1.06) if not game.L.indoor else (1.0, 0.92, 0.95), sat=0.86)
+                                tint=(1.0, 0.94, 0.9) if not game.L.indoor else (1.0, 0.92, 0.95), sat=1.06 if not game.L.indoor else 0.9)
         self.player_vis = create_char(game.save["cls"])
         self.player_vis.root.reparentTo(self.dyn)
         self.cam_init = False

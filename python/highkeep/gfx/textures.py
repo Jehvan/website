@@ -596,11 +596,11 @@ def detail():
 
 # ---------------------------------------------------------------- terrain painter
 THEMES = {
-    "fields": {"base": "#5d6b34", "a": "#75803c", "b": "#485528", "road": "#85704c", "edge": "#5b6a30"},
-    "wood": {"base": "#34452a", "a": "#465a30", "b": "#25341f", "road": "#6a5a3c", "edge": "#3c4e2a"},
-    "bridge": {"base": "#566a36", "a": "#69803f", "b": "#43562c", "road": "#86704c", "edge": "#506230"},
+    "fields": {"base": "#5b7a2e", "a": "#7f9a3a", "b": "#42602a", "road": "#85704c", "edge": "#5b6a30"},
+    "wood": {"base": "#3f6a2a", "a": "#5a8434", "b": "#2c4e20", "road": "#6a5a3c", "edge": "#3c4e2a"},
+    "bridge": {"base": "#587a30", "a": "#799a3a", "b": "#44642a", "road": "#86704c", "edge": "#506230"},
     "marsh": {"base": "#3d4a34", "a": "#4f5d3c", "b": "#2c3828", "road": "#5d513a", "edge": "#3e4a30"},
-    "gate": {"base": "#5c6140", "a": "#6c7248", "b": "#4a4f34", "road": "#7c735c", "edge": "#5b6038"},
+    "gate": {"base": "#68803a", "a": "#7f9444", "b": "#52682e", "road": "#7c735c", "edge": "#5b6038"},
     "hall": {"base": "#4a4540"}, "vault": {"base": "#3a3942"},
 }
 
@@ -664,6 +664,11 @@ def _paint_ground(L, quality="high"):
         x, y = int(R() * w), int(R() * h)
         px = img.getXel(x, y)
         img.setXel(x, y, *mix(px, c, 0.4))
+    if L.theme in ("fields", "wood", "bridge", "gate"):
+        blobs((0.95, 0.9, 0.45), 40, 20 * sx * 3, 50 * sx * 3, 0.1)       # sunlit patches
+        for _ in range(260 if L.theme != "wood" else 120):
+            fc = ((1.0, 0.95, 0.4), (0.95, 0.95, 0.95), (0.9, 0.35, 0.45), (0.55, 0.5, 0.95))[int(R() * 4)]
+            spot(p, R() * w, R() * h, 0.9 + R() * 0.9, fc, 0.85, False)
     # leaf litter / dirt speckle for a worn, earthy look
     for _ in range(900):
         c = (0.36 + R() * 0.12, 0.26 + R() * 0.08, 0.14) if R() < 0.6 else (0.5, 0.38, 0.2)
