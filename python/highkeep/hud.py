@@ -1,10 +1,11 @@
 """In-game HUD: bars, level badge, stage/wave, gold, skill/potion buttons, banner, boss bar, health bars, damage numbers."""
 import math
 
-from panda3d.core import NodePath, TextNode, TransparencyAttrib
+from panda3d.core import NodePath, TextNode, TextureStage, TransparencyAttrib
 
 from . import data as D
 from .icons import icon
+from . import hudart
 from .uikit import INK, DIM, EMBER, N
 
 SKILL_KEYS = ["1", "2", "3"]
@@ -34,15 +35,11 @@ class Hud:
         u = max(0.8, min(1.5, H / 720))
         self.u = u
         r = self.root
-        # top-left
+        # level medallion + xp bar (top-left)
         k.box(r, 12, 12, 44 * u, 44 * u, (0.12, 0.09, 0.07, 0.95), EMBER, 2)
         self.lvl = k.text(r, 12 + 22 * u, 16 * u, "1", 22 * u, INK, "center")
-        bx, bw = 64 * u, 230 * u
-        self.hp = self._bar(r, bx, 12 * u, bw, 17 * u, (0.8, 0.22, 0.17, 1))
-        self.mp = self._bar(r, bx, 31 * u, bw, 14 * u, (0.22, 0.4, 0.88, 1))
-        self.xp = self._bar(r, bx, 47 * u, bw, 6 * u, (0.95, 0.75, 0.3, 1))
-        self.hpt = k.text(r, bx + bw / 2, 12 * u, "", 12 * u, INK, "center", serif=False)
-        self.mpt = k.text(r, bx + bw / 2, 30 * u, "", 11 * u, INK, "center", serif=False)
+        self.xp = self._bar(r, 64 * u, 34 * u, 200 * u, 8 * u, (0.95, 0.75, 0.3, 1))
+        k.text(r, 64 * u, 14 * u, "EXPERIENCE", 11 * u, DIM, serif=False)
         # top center
         self.stage_t = k.text(r, W / 2, 10 * u, "", 17 * u, INK, "center")
         self.wave_t = k.text(r, W / 2, 32 * u, "", 13 * u, EMBER, "center")
@@ -53,17 +50,32 @@ class Hud:
         k.box(r, W - 56 * u, 12, 44 * u, 32 * u, (0.07, 0.05, 0.04, 0.85), (0.54, 0.42, 0.28, 1))
         k.text(r, W - 34 * u, 15 * u, "II", 17 * u, INK, "center")
         self.pause_rect = (W - 56 * u, 12, 44 * u, 32 * u)
-        # action bar
+        # ornate action bar flanked by health / mana orbs
         cls_d = D.CLASSES[cls]
-        size = 58 * u
-        gap = 10 * u
+        size = 56 * u
+        gap = 8 * u
         total = 4 * size + 3 * gap
-        x0, y0 = (W - total) / 2, H - size - 16 * u
+        orb = 118 * u
+        x0, y0 = (W - total) / 2, H - size - 36 * u
+        by = y0 - 10 * u
+        k.box(r, x0 - 22 * u, by, total + 44 * u, size + 36 * u, (0.07, 0.05, 0.04, 0.9), (0.48, 0.36, 0.2, 1), 2)
+        k.box(r, x0 - 14 * u, by + 7 * u, total + 28 * u, size + 22 * u, (0.12, 0.09, 0.07, 0.95), (0.25, 0.18, 0.1, 1), 1)
+        for ox in (x0 - 22 * u, x0 + total + 22 * u):
+            k.box(r, ox - 3 * u, by + (size + 36 * u) / 2 - 3 * u, 6 * u, 6 * u, (0.8, 0.6, 0.25, 1))
+        self.orbs = {}
+        for kind, ox in (("hp", x0 - 34 * u - orb), ("mp", x0 + total + 34 * u)):
+            oy = H - orb - 14 * u
+            k.image(r, hudart.orb_back(), ox, oy, orb, orb)
+            fill = self._orb_fill(r, kind, ox, oy, orb)
+            k.image(r, hudart.orb_glass(), ox, oy, orb, orb)
+            k.image(r, hudart.ring(), ox - 7 * u, oy - 7 * u, orb + 14 * u, orb + 14 * u)
+            txt = k.text(r, ox + orb / 2, oy + orb / 2 - 8 * u, "", 13 * u, INK, "center", serif=False)
+            self.orbs[kind] = (fill, txt)
         self.slots = []
         names = [(s["id"], KEY) for s, KEY in zip(cls_d["skills"], SKILL_KEYS)] + [("potion", "F")]
         for i, (nm, key) in enumerate(names):
             x = x0 + i * (size + gap)
-            k.box(r, x, y0, size, size, (0.12, 0.09, 0.07, 0.95), (0.54, 0.42, 0.28, 1), 2)
+            k.box(r, x, y0, size, size, (0.1, 0.075, 0.06, 0.98), (0.6, 0.46, 0.26, 1), 2)
             ic = k.icon(r, nm, x + 4, y0 + 4, size - 8)
             cd = k._card(r, x, y0, size, size, (0, 0, 0, 0.7))
             cd.hide()
@@ -87,6 +99,24 @@ class Hud:
         self.hit_flash = k.box(r, 0, 0, W, H, (0.7, 0.0, 0.0, 0.0))
         self.enemy_bars = []
 
+    def _orb_fill(self, parent, kind, x, y, s):
+        """Bottom-anchored liquid: scaling Z crops both geometry and texture so the fill level reads like a real orb."""
+        k = self.kit
+        k._cm.setFrame(0, s, 0, s)
+        c = parent.attachNewNode(k._cm.generate())
+        c.setPos(x, 0, -(y + s))
+        c.setTexture(hudart.orb_fill(kind))
+        c.setTransparency(TransparencyAttrib.MAlpha)
+        return c
+
+    def _set_orb(self, kind, frac, label):
+        fill, txt = self.orbs[kind]
+        frac = max(0.0, min(1.0, frac))
+        fill.setSz(max(0.001, frac))
+        ts = TextureStage.getDefault()
+        fill.setTexScale(ts, 1, max(0.001, frac))
+        self.set_text(txt, label)
+
     def _bar(self, parent, x, y, w, h, color):
         k = self.kit
         k.box(parent, x, y, w, h, (0.04, 0.03, 0.02, 0.9), (0, 0, 0, 1), 1)
@@ -104,12 +134,10 @@ class Hud:
             self.build(game.save["cls"])
         p, save, hero, st = game.p, game.save, game.hero, game.stage
         self.lvl.node().setText(str(save["level"]))
-        self.hp.setSx(max(0.001, p.hp / hero["max_hp"]))
-        self.mp.setSx(max(0.001, p.mp / hero["max_mp"]))
+        self._set_orb("hp", p.hp / hero["max_hp"], f"{math.ceil(p.hp)}")
+        self._set_orb("mp", p.mp / hero["max_mp"], f"{math.floor(p.mp)}")
         need = 1 if save["level"] >= D.MAX_LEVEL else D.xp_to_next(save["level"])
         self.xp.setSx(max(0.001, 1 if save["level"] >= D.MAX_LEVEL else save["xp"] / need))
-        self.set_text(self.hpt, f"{math.ceil(p.hp)} / {hero['max_hp']}")
-        self.set_text(self.mpt, f"{math.floor(p.mp)} / {hero['max_mp']}")
         self.set_text(self.stage_t, st.name)
         self.set_text(self.wave_t, f"Wave {max(1, st.wave_idx + 1)} / {len(st.waves)}")
         self.set_text(self.gold_t, str(save["gold"]))
