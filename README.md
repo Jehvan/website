@@ -1,4 +1,5 @@
 # Highkeep Road
+> **Unity version:** the game has been rebuilt for Unity in [`unity/`](unity/README.md) (click-to-move, animated 3D characters). The Python/Panda3D version is in `python/`.
 
 > **Two versions live here.** The browser game (Vite + three.js) is documented below; the Python / Panda3D rewrite is in
 > [`python/`](python/README.md) (`cd python && pip install -r requirements.txt && python main.py`).

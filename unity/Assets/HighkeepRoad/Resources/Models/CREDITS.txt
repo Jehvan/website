@@ -1,0 +1,4 @@
+3D models and textures: KayKit by Kay Lousberg (www.kaylousberg.com), Creative Commons Zero (CC0 1.0).
+  - Adventurers Character Pack 1.0, Skeletons Character Pack 1.0, Dungeon Remastered 1.0, Medieval Hexagon Pack 1.0.
+  Characters were trimmed to the animations the game uses and re-exported with unity/Tools/blender_convert.py.
+Fonts: Cinzel and Alegreya Sans, SIL Open Font License 1.1 (see Fonts/OFL-*.txt).
