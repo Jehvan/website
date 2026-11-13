@@ -129,23 +129,42 @@ export function makeEnemy(game, type, x, y, opts = {}) {
 
 /* ---------- helpers ---------- */
 
+export const targetable = (e) => !!e && !e.dead && e.spawnT <= 0.3;
+export const enemyById = (game, id) => (id ? game.enemies.find((e) => e.id === id) : null);
+
+// Aim at the clicked target if there is one, otherwise at the cursor.
 function aimInfo(game, input) {
   const p = game.p;
-  let target = null;
-  if (input.auto) {
-    let best = 700;
-    for (const e of game.enemies) {
-      if (e.dead || e.spawnT > 0.3) continue;
-      const d = dist(p, e);
-      if (d < best) { best = d; target = e; }
-    }
-    if (target) return { x: target.x, y: target.y, ang: Math.atan2(target.y - p.y, target.x - p.x), target };
-    const ang = Math.hypot(input.mx, input.my) > 0.1 ? Math.atan2(input.my, input.mx) : p.face;
-    return { x: p.x + Math.cos(ang) * 200, y: p.y + Math.sin(ang) * 200, ang, target: null };
-  }
+  const target = enemyById(game, input.targetId);
+  if (targetable(target)) return { x: target.x, y: target.y, ang: Math.atan2(target.y - p.y, target.x - p.x), target };
   const a = input.aim || { x: p.x + Math.cos(p.face) * 100, y: p.y + Math.sin(p.face) * 100 };
   const dx = a.x - p.x, dy = a.y - p.y;
   return { x: a.x, y: a.y, ang: Math.hypot(dx, dy) > 4 ? Math.atan2(dy, dx) : p.face, target: null };
+}
+
+/** Distance at which the hero stops walking and starts attacking a clicked target. */
+export function attackReach(game, e) {
+  const at = CLASSES[game.save.cls].attack;
+  return at.type === 'melee' ? at.range * 0.72 + e.r : at.range * 0.8;
+}
+
+// Best heading towards (tx, ty) that is not blocked, probing to either side like a whisker. o keeps steer/steerT.
+function steerAngle(game, o, r, tx, ty, step) {
+  const ang = Math.atan2(ty - o.y, tx - o.x);
+  if (step <= 0) return ang;
+  const probe = (a) => {
+    const t = { x: o.x + Math.cos(a) * step * 2, y: o.y + Math.sin(a) * step * 2 };
+    resolveMove(game.L, t, r);
+    return ((t.x - o.x) * Math.cos(ang) + (t.y - o.y) * Math.sin(ang)) / (step * 2);
+  };
+  let best = ang;
+  if (probe(ang) < 0.45) {
+    if (!o.steerT || o.steerT < game.time) { o.steer = o.steer || (R() < 0.5 ? 1 : -1); o.steerT = game.time + 1.2; }
+    let bp = -9;
+    for (const k of [0.7, 1.4, 2.1]) { const a = ang + o.steer * k, pr = probe(a); if (pr > bp) { bp = pr; best = a; } if (pr > 0.2) break; }
+    if (bp < 0.1) o.steer = -o.steer;
+  }
+  return best;
 }
 
 function floatText(game, x, y, text, color = '#fff', size = 14, crit = false) {
@@ -312,7 +331,7 @@ const SKILLS = {
   },
   tumble(game, a, input) {
     const p = game.p;
-    let ang = Math.hypot(input.mx, input.my) > 0.2 ? Math.atan2(input.my, input.mx) : a.ang + Math.PI;
+    const ang = Math.hypot(input.mx, input.my) > 0.2 ? Math.atan2(input.my, input.mx) : p.moving ? p.moveAng : a.ang + Math.PI;
     p.dash = { t: 0.4, dur: 0.4, vx: Math.cos(ang) * 400, vy: Math.sin(ang) * 400, hit: new Set(), kind: 'tumble' };
     p.invuln = Math.max(p.invuln, 0.42); p.skillAnim = 'tumble'; p.skillT = 0.4; p.moveAng = ang;
   },
@@ -336,7 +355,7 @@ const SKILLS = {
   },
   blink(game, a, input) {
     const p = game.p;
-    const ang = input.auto && Math.hypot(input.mx, input.my) > 0.2 ? Math.atan2(input.my, input.mx) : a.ang;
+    const ang = a.ang;
     addFx(game, { type: 'blink', x: p.x, y: p.y, dur: 0.4, color: '#b79bff' });
     const ox = p.x, oy = p.y;
     for (let s = 0; s < 18; s++) {
@@ -498,11 +517,26 @@ function updatePlayer(game, dt, input) {
     if (input.skills[i]) { input.skills[i] = false; tryUseSkill(game, i, input); }
   }
 
-  // movement
+  // movement: keyboard > clicked target > clicked ground
   let mx = input.mx, my = input.my;
   const ml = Math.hypot(mx, my);
   if (ml > 1) { mx /= ml; my /= ml; }
-  p.moving = ml > 0.1;
+  const keyboard = ml > 0.1;
+  let tgt = enemyById(game, input.targetId);
+  if (input.targetId && (!tgt || tgt.dead)) input.targetId = 0;
+  if (!targetable(tgt)) tgt = null;
+  let inRange = false;
+  const spd0 = hero.speed * (p.spin ? 0.65 : 1);
+  if (keyboard) input.dest = null;
+  else if (tgt) {
+    if (dist(p, tgt) > attackReach(game, tgt)) { const ang = steerAngle(game, p, p.r, tgt.x, tgt.y, spd0 * dt); mx = Math.cos(ang); my = Math.sin(ang); }
+    else inRange = true;
+  } else if (input.dest) {
+    const d = Math.hypot(input.dest.x - p.x, input.dest.y - p.y);
+    if (d < Math.max(6, spd0 * dt)) input.dest = null;
+    else { const ang = steerAngle(game, p, p.r, input.dest.x, input.dest.y, spd0 * dt); const k = Math.min(1, d / Math.max(1e-3, spd0 * dt)); mx = Math.cos(ang) * k; my = Math.sin(ang) * k; }
+  }
+  p.moving = Math.hypot(mx, my) > 0.1;
   let spd = hero.speed;
   if (p.spin) spd *= 0.65;
   if (p.dash) {
@@ -527,17 +561,20 @@ function updatePlayer(game, dt, input) {
     if (d.t <= 0) p.dash = null;
     p.walkPhase += dt * 16;
     p.moveAng = Math.atan2(d.vy, d.vx);
+    input.dest = null;
   } else {
     p.vx *= Math.pow(0.0005, dt); p.vy *= Math.pow(0.0005, dt);
-    p.x += (mx * spd + p.vx) * dt; p.y += (my * spd + p.vy) * dt;
-    if (p.moving) { p.walkPhase += dt * (spd / 18); p.moveAng = Math.atan2(my, mx); }
+    const moveK = p.atkT >= 0 && !keyboard ? 0 : 1;      // plant the feet while swinging
+    p.x += (mx * spd * moveK + p.vx) * dt; p.y += (my * spd * moveK + p.vy) * dt;
+    if (p.moving && moveK) { p.walkPhase += dt * (spd / 18); p.moveAng = Math.atan2(my, mx); }
   }
   resolveMove(game.L, p);
 
-  // facing: desktop faces aim point; touch faces target or move dir
+  // face the target while fighting, otherwise the way we walk
+  const wantAttack = (input.attack || inRange) && p.atkCd <= 0 && !p.dash && !p.spin;
   if (!p.dash) {
-    if (input.auto) { p.face = a.target ? a.ang : p.moving ? Math.atan2(my, mx) : p.face; }
-    else p.face = a.ang;
+    if (wantAttack || p.atkT >= 0 || inRange || (input.attack && !p.moving)) p.face = aimInfo(game, input).ang;
+    else if (p.moving) p.face = p.moveAng;
   }
 
   // whirlwind
@@ -556,7 +593,7 @@ function updatePlayer(game, dt, input) {
   }
 
   // basic attack
-  if (input.attack && p.atkCd <= 0 && !p.dash && !p.spin) playerAttack(game, a);
+  if (wantAttack) playerAttack(game, aimInfo(game, input));
 }
 
 /* ---------- enemies ---------- */
@@ -602,7 +639,7 @@ function updateEnemies(game, dt) {
   const L = game.L;
   for (let i = game.enemies.length - 1; i >= 0; i--) {
     const e = game.enemies[i];
-    if (e.dead) { e.deadT += dt; if (e.deadT > 1.2) game.enemies.splice(i, 1); continue; }
+    if (e.dead) { e.deadT += dt; if (e.deadT > 2.6) game.enemies.splice(i, 1); continue; }
     e.hitT = Math.max(0, e.hitT - dt);
     e.slowT = Math.max(0, e.slowT - dt);
     e.stunT = Math.max(0, e.stunT - dt);

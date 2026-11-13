@@ -1,19 +1,20 @@
-// Keyboard, mouse and touch input. Produces a plain `input` object the sim reads.
+// Mouse, touch and keyboard input, Kingsroad style:
+//   click / tap the ground  -> walk there (hold to keep walking towards the pointer)
+//   click / tap an enemy    -> target it: the hero walks into range and attacks until it falls
+//   1 2 3 skills, F potion, Shift+click or Space attack in place, WASD also moves, wheel zooms, Esc pauses.
 export function createInput(root) {
   const input = {
-    mx: 0, my: 0, aim: null, auto: false, attack: false, skills: [false, false, false], potion: false,
-    touch: false, onPause: () => {}, enabled: false,
+    mx: 0, my: 0, aim: null, dest: null, targetId: 0, attack: false, skills: [false, false, false], potion: false,
+    touch: false, onPause: () => {}, enabled: false, view: null, game: null,
   };
   const keys = new Set();
-  let mouse = { x: innerWidth / 2, y: innerHeight / 2, has: false };
-  let mouseDown = false, spaceDown = false, touchAttack = false;
-  const joy = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
-  const R = 56;
+  const ptr = { x: innerWidth / 2, y: innerHeight / 2, has: false, down: false, moveHold: false, shift: false, id: null };
+  let spaceDown = false;
 
-  const setTouch = (v) => { if (input.touch !== v) { input.touch = v; input.auto = v; document.body.classList.toggle('touch', v); } };
-  try { if (matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0) setTouch(true); } catch (e) { /* ignore */ }
+  const setTouch = (v) => { if (input.touch !== v) { input.touch = v; document.body.classList.toggle('touch', v); } };
+  try { if (matchMedia('(pointer: coarse)').matches) setTouch(true); } catch (e) { /* ignore */ }
 
-  const kd = (e) => {
+  addEventListener('keydown', (e) => {
     const k = e.code;
     if (k === 'Escape' || k === 'KeyP') { if (!e.repeat) input.onPause(); e.preventDefault(); return; }
     if (!input.enabled) return;
@@ -21,84 +22,79 @@ export function createInput(root) {
     else if (k === 'Digit1' || k === 'Numpad1') { if (!e.repeat) input.skills[0] = true; }
     else if (k === 'Digit2' || k === 'Numpad2') { if (!e.repeat) input.skills[1] = true; }
     else if (k === 'Digit3' || k === 'Numpad3') { if (!e.repeat) input.skills[2] = true; }
-    else if (k === 'KeyF') { if (!e.repeat) input.potion = true; }
+    else if (k === 'KeyF' || k === 'KeyQ') { if (!e.repeat) input.potion = true; }
     else if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) { keys.add(k); e.preventDefault(); }
-  };
-  const ku = (e) => { keys.delete(e.code); if (e.code === 'Space') spaceDown = false; };
-  addEventListener('keydown', kd);
-  addEventListener('keyup', ku);
-  addEventListener('blur', () => { keys.clear(); spaceDown = false; mouseDown = false; });
-
-  const gameEl = root.game;
-  gameEl.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') { mouse = { x: e.clientX, y: e.clientY, has: true }; if (input.touch) setTouch(false); } });
-  gameEl.addEventListener('pointerdown', (e) => {
-    if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
-      if (e.button === 0) mouseDown = true;
-      mouse = { x: e.clientX, y: e.clientY, has: true };
-    }
   });
-  addEventListener('pointerup', (e) => { if (e.pointerType === 'mouse' && e.button === 0) mouseDown = false; });
-  gameEl.addEventListener('contextmenu', (e) => e.preventDefault());
+  addEventListener('keyup', (e) => { keys.delete(e.code); if (e.code === 'Space') spaceDown = false; });
+  addEventListener('blur', () => { keys.clear(); spaceDown = false; ptr.down = false; });
 
-  // ---- touch: floating joystick + buttons ----
-  const joyZone = root.joyZone, joyBase = root.joyBase, joyKnob = root.joyKnob;
-  joyZone.addEventListener('pointerdown', (e) => {
-    if (e.pointerType === 'mouse') return;
-    setTouch(true);
-    if (joy.id !== null) return;
-    joy.id = e.pointerId; joy.ox = e.clientX; joy.oy = e.clientY; joy.x = 0; joy.y = 0;
-    joyZone.setPointerCapture(e.pointerId);
-    joyBase.style.left = `${e.clientX}px`; joyBase.style.top = `${e.clientY}px`;
-    joyKnob.style.left = `${e.clientX}px`; joyKnob.style.top = `${e.clientY}px`;
-    joyBase.classList.add('on'); joyKnob.classList.add('on');
+  const el = root.game;
+  const press = (x, y, shift) => {
+    const v = input.view, g = input.game;
+    if (!v || !g || !g.p || g.p.dead) return;
+    ptr.shift = shift;
+    if (shift) { ptr.moveHold = false; input.dest = null; return; }
+    const id = v.pickEnemy(g, x, y, input.touch ? 1.5 : 1);
+    if (id) { input.targetId = id; input.dest = null; ptr.moveHold = false; return; }
+    const w = v.screenToWorld(x, y);
+    if (!w) return;
+    input.targetId = 0; input.dest = w; ptr.moveHold = true;
+    v.showClick(w.x, w.y);
+  };
+  el.addEventListener('pointerdown', (e) => {
+    if (!input.enabled) return;
+    setTouch(e.pointerType !== 'mouse');
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (ptr.id !== null && ptr.id !== e.pointerId) return;
+    ptr.id = e.pointerId; ptr.x = e.clientX; ptr.y = e.clientY; ptr.has = true; ptr.down = true;
+    try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    press(e.clientX, e.clientY, e.shiftKey);
     e.preventDefault();
   });
-  joyZone.addEventListener('pointermove', (e) => {
-    if (e.pointerId !== joy.id) return;
-    let dx = e.clientX - joy.ox, dy = e.clientY - joy.oy;
-    const l = Math.hypot(dx, dy);
-    if (l > R) { dx = (dx / l) * R; dy = (dy / l) * R; }
-    joy.x = dx / R; joy.y = dy / R;
-    joyKnob.style.left = `${joy.ox + dx}px`; joyKnob.style.top = `${joy.oy + dy}px`;
+  el.addEventListener('pointermove', (e) => {
+    if (ptr.id !== null && e.pointerId !== ptr.id) return;
+    ptr.x = e.clientX; ptr.y = e.clientY; ptr.has = true;
   });
-  const joyEnd = (e) => {
-    if (e.pointerId !== joy.id) return;
-    joy.id = null; joy.x = joy.y = 0;
-    joyBase.classList.remove('on'); joyKnob.classList.remove('on');
-  };
-  joyZone.addEventListener('pointerup', joyEnd);
-  joyZone.addEventListener('pointercancel', joyEnd);
+  const up = (e) => { if (e.pointerId === ptr.id) { ptr.down = false; ptr.id = null; } };
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+  el.addEventListener('wheel', (e) => { if (input.enabled) { input.view?.zoom(Math.sign(e.deltaY) * 1.2); e.preventDefault(); } }, { passive: false });
 
   // on-screen buttons (delegated; data-act on HUD elements)
-  const held = new Map();
   root.hud.addEventListener('pointerdown', (e) => {
     const b = e.target.closest('[data-act]');
-    if (!b || !input.enabled) return;
+    if (!b) return;
     const act = b.dataset.act;
-    if (e.pointerType !== 'mouse') setTouch(true);
-    if (act === 'attack') { touchAttack = true; held.set(e.pointerId, 'attack'); b.setPointerCapture?.(e.pointerId); }
-    else if (act.startsWith('skill')) input.skills[+act.slice(5)] = true;
+    if (act === 'pause') { input.onPause(); e.preventDefault(); return; }
+    if (!input.enabled) return;
+    if (act.startsWith('skill')) input.skills[+act.slice(5)] = true;
     else if (act === 'potion') input.potion = true;
-    else if (act === 'pause') input.onPause();
-    e.preventDefault();
+    e.preventDefault(); e.stopPropagation();
   });
-  const rel = (e) => { if (held.get(e.pointerId) === 'attack') { touchAttack = false; held.delete(e.pointerId); } };
-  root.hud.addEventListener('pointerup', rel);
-  root.hud.addEventListener('pointercancel', rel);
-  root.hud.addEventListener('lostpointercapture', rel);
 
-  input.update = (screenToWorld) => {
+  input.update = () => {
     let x = 0, y = 0;
     if (keys.has('KeyA') || keys.has('ArrowLeft')) x -= 1;
     if (keys.has('KeyD') || keys.has('ArrowRight')) x += 1;
     if (keys.has('KeyW') || keys.has('ArrowUp')) y -= 1;
     if (keys.has('KeyS') || keys.has('ArrowDown')) y += 1;
     if (x || y) { const l = Math.hypot(x, y); x /= l; y /= l; }
-    if (joy.id !== null) { x = joy.x; y = joy.y; }
     input.mx = x; input.my = y;
-    input.attack = input.enabled && (mouseDown || spaceDown || touchAttack);
-    if (!input.touch && mouse.has && screenToWorld) input.aim = screenToWorld(mouse.x, mouse.y);
+    const v = input.view, g = input.game;
+    if (v && ptr.has) {
+      const w = v.screenToWorld(ptr.x, ptr.y);
+      if (w) {
+        input.aim = w;
+        if (ptr.down && ptr.moveHold && input.enabled) input.dest = w;
+      }
+      v.setHover(!input.touch && g ? v.pickEnemy(g, ptr.x, ptr.y) : 0);
+    }
+    input.attack = input.enabled && (spaceDown || (ptr.down && ptr.shift));
   };
-  input.reset = () => { keys.clear(); mouseDown = spaceDown = touchAttack = false; input.skills = [false, false, false]; input.potion = false; joy.id = null; joy.x = joy.y = 0; input.mx = input.my = 0; joyBase.classList.remove('on'); joyKnob.classList.remove('on'); };
+  input.reset = () => {
+    keys.clear(); spaceDown = false; ptr.down = false; ptr.id = null; ptr.moveHold = false;
+    input.skills = [false, false, false]; input.potion = false; input.mx = input.my = 0; input.dest = null; input.targetId = 0; input.attack = false;
+  };
   return input;
 }
