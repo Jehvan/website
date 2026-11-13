@@ -41,7 +41,7 @@ export function createUI(root, api) {
               <div class="skl">${c.skills.map((k) => `<img src="${icon(k.id, 36)}" title="${esc(k.name)} (Lv ${k.unlock})" alt="${esc(k.name)}">`).join('')}</div>
             </button>`).join('')}
         </div>
-        <p class="hint">WASD move &middot; mouse aim &middot; click / Space attack &middot; 1 2 3 skills &middot; F potion &middot; Esc pause</p>
+        <p class="hint">Click the ground to move &middot; click a foe to attack &middot; 1 2 3 skills &middot; F potion &middot; scroll to zoom &middot; Esc pause</p>
       </div>`;
   }
 

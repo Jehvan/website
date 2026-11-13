@@ -78,6 +78,7 @@ addEventListener('pagehide', persist);
 
 function onResize() {
   const w = innerWidth, h = innerHeight;
+  document.documentElement.style.setProperty('--u', Math.min(1, Math.max(0.56, Math.min(w / 860, h / 560))).toFixed(3));
   const dprCap = settings.gfx === 'low' ? 1 : 2;
   const dpr = Math.min(devicePixelRatio || 1, dprCap);
   renderer.resize(w, h, dpr);
@@ -108,7 +109,7 @@ function frame(now) {
   } else acc = 0;
   renderer.render(game, dt);
   overlay.draw(game, renderer.project);
-  if (game.mode === 'stage') hud.update(game);
+  if (game.mode === 'stage') hud.update(game, renderer.hoverId);
 }
 
 (async function boot() {

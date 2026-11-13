@@ -1,6 +1,7 @@
 // Game state and simulation: stage flow, player, enemies, combat, loot.
 import { CLASSES, ENEMIES, STAGES, stageById, MAX_POTIONS, WORLD_W, skillMul, skillCdMul, ARTIFACTS, ART_MAX } from './data.js';
 import { buildLayout, resolveMove, pointBlocked, rng } from './world.js';
+import { buildNav, findPath, lineClear, updateField, fieldHeading } from './nav.js';
 import { heroStats, rollItem, rollRarity, addXp, armorMul, rarityOf } from './items.js';
 
 const TAU = Math.PI * 2;
@@ -55,7 +56,7 @@ export function startStage(game, id, floor = 0) {
   game.hero = hero;
   const sIdx = isVault ? 5 + floor * 0.35 : id - 1;
   game.diff = { hp: 1 + 0.5 * sIdx, dmg: 1 + 0.28 * sIdx, xp: 1 + 0.3 * sIdx, gold: 1 + 0.3 * sIdx, s: sIdx };
-  game.L = L; game.mode = 'stage'; game.paused = false;
+  game.L = L; game.nav = buildNav(L); game.mode = 'stage'; game.paused = false;
   game.enemies = []; game.proj = []; game.zones = []; game.pickups = []; game.fx = []; game.texts = []; game.spawnQ = [];
   game.shake = 0; game.time = 0;
   game.run = { kills: 0, steel: 0, gold: 0, xp: 0, items: [], levels: 0, potions: 0, startLevel: game.save.level, firstClear: false };
@@ -148,23 +149,16 @@ export function attackReach(game, e) {
   return at.type === 'melee' ? at.range * 0.72 + e.r : at.range * 0.8;
 }
 
-// Best heading towards (tx, ty) that is not blocked, probing to either side like a whisker. o keeps steer/steerT.
-function steerAngle(game, o, r, tx, ty, step) {
-  const ang = Math.atan2(ty - o.y, tx - o.x);
-  if (step <= 0) return ang;
-  const probe = (a) => {
-    const t = { x: o.x + Math.cos(a) * step * 2, y: o.y + Math.sin(a) * step * 2 };
-    resolveMove(game.L, t, r);
-    return ((t.x - o.x) * Math.cos(ang) + (t.y - o.y) * Math.sin(ang)) / (step * 2);
-  };
-  let best = ang;
-  if (probe(ang) < 0.45) {
-    if (!o.steerT || o.steerT < game.time) { o.steer = o.steer || (R() < 0.5 ? 1 : -1); o.steerT = game.time + 1.2; }
-    let bp = -9;
-    for (const k of [0.7, 1.4, 2.1]) { const a = ang + o.steer * k, pr = probe(a); if (pr > bp) { bp = pr; best = a; } if (pr > 0.2) break; }
-    if (bp < 0.1) o.steer = -o.steer;
+// Heading for the hero towards (tx, ty) along an A* path that is refreshed when the goal moves.
+function pathHeading(game, p, tx, ty) {
+  const nav = game.nav, r = p.route;
+  if (!r || game.time > r.until || Math.hypot(r.tx - tx, r.ty - ty) > 28) {
+    p.route = { tx, ty, pts: findPath(nav, p.x, p.y, tx, ty), until: game.time + 0.5 };
   }
-  return best;
+  const pts = p.route.pts;
+  while (pts.length > 1 && Math.hypot(pts[0].x - p.x, pts[0].y - p.y) < 12) pts.shift();
+  const w = pts[0] || { x: tx, y: ty };
+  return Math.atan2(w.y - p.y, w.x - p.x);
 }
 
 function floatText(game, x, y, text, color = '#fff', size = 14, crit = false) {
@@ -529,12 +523,12 @@ function updatePlayer(game, dt, input) {
   const spd0 = hero.speed * (p.spin ? 0.65 : 1);
   if (keyboard) input.dest = null;
   else if (tgt) {
-    if (dist(p, tgt) > attackReach(game, tgt)) { const ang = steerAngle(game, p, p.r, tgt.x, tgt.y, spd0 * dt); mx = Math.cos(ang); my = Math.sin(ang); }
+    if (dist(p, tgt) > attackReach(game, tgt)) { const ang = pathHeading(game, p, tgt.x, tgt.y); mx = Math.cos(ang); my = Math.sin(ang); }
     else inRange = true;
   } else if (input.dest) {
     const d = Math.hypot(input.dest.x - p.x, input.dest.y - p.y);
     if (d < Math.max(6, spd0 * dt)) input.dest = null;
-    else { const ang = steerAngle(game, p, p.r, input.dest.x, input.dest.y, spd0 * dt); const k = Math.min(1, d / Math.max(1e-3, spd0 * dt)); mx = Math.cos(ang) * k; my = Math.sin(ang) * k; }
+    else { const ang = pathHeading(game, p, input.dest.x, input.dest.y); const k = Math.min(1, d / Math.max(1e-3, spd0 * dt)); mx = Math.cos(ang) * k; my = Math.sin(ang) * k; }
   }
   p.moving = Math.hypot(mx, my) > 0.1;
   let spd = hero.speed;
@@ -599,25 +593,15 @@ function updatePlayer(game, dt, input) {
 /* ---------- enemies ---------- */
 
 function moveTowards(game, e, tx, ty, speed, dt) {
-  const dx = tx - e.x, dy = ty - e.y;
-  const ang = Math.atan2(dy, dx), step = speed * dt;
+  const ang = Math.atan2(ty - e.y, tx - e.x), step = speed * dt;
   let best = ang;
-  if (!e.flying) {
-    // probe the direct step; if an obstacle eats most of it, steer around (sticky side)
-    const probe = (a) => {
-      const t = { x: e.x + Math.cos(a) * step * 2, y: e.y + Math.sin(a) * step * 2 };
-      resolveMove(game.L, t, e.r);
-      return ((t.x - e.x) * Math.cos(ang) + (t.y - e.y) * Math.sin(ang)) / (step * 2);
-    };
-    if (probe(ang) < 0.45) {
-      if (!e.steerT || e.steerT < game.time) { e.steer = e.steer || (R() < 0.5 ? 1 : -1); e.steerT = game.time + 1.2; }
-      let bp = -9;
-      for (const k of [0.7, 1.4, 2.1]) { const a = ang + e.steer * k, pr = probe(a); if (pr > bp) { bp = pr; best = a; } if (pr > 0.2) break; }
-      if (bp < 0.1) e.steer = -e.steer;
-    }
+  if (!e.flying && !lineClear(game.nav, e.x, e.y, tx, ty)) {
+    // walk the shared flow field towards the hero when the straight line is blocked
+    const h = fieldHeading(game.nav, e.x, e.y);
+    if (h !== null) best = h;
   }
   e.x += Math.cos(best) * step; e.y += Math.sin(best) * step;
-  e.face = ang;
+  e.face = best === ang ? ang : best;
   e.walkPhase += dt * speed / 14;
 }
 
@@ -635,6 +619,7 @@ function enemyShoot(game, e, kind, ang, speed, dmg, life = 3, r = 5) {
 }
 
 function updateEnemies(game, dt) {
+  updateField(game.nav, game.p.x, game.p.y, game.time);
   const p = game.p;
   const L = game.L;
   for (let i = game.enemies.length - 1; i >= 0; i--) {

@@ -14,13 +14,12 @@ export function createOverlay(canvas) {
       ctx.clearRect(0, 0, w, h);
       if (!game.p) return;
       ctx.textAlign = 'center';
-      let boss = null;
       // health bars
       for (const e of game.enemies) {
         if (e.dead) continue;
-        if (e.def.boss) { boss = e; continue; }
+        if (e.def.boss) continue;
         if (e.hp >= e.maxHp && e.hitT <= 0 && e.spawnT <= 0 && e.state !== 'windup') continue;
-        const tall = e.type === 'brute' ? 62 : e.type === 'wisp' ? 40 : 46;
+        const tall = e.type === 'brute' ? 88 : e.type === 'wisp' ? 66 : 60;
         const s = project(e.x, e.y, tall);
         if (!s) continue;
         const bw = e.type === 'brute' ? 46 : 32;
@@ -30,7 +29,7 @@ export function createOverlay(canvas) {
       }
       // damage numbers
       for (const t of game.texts) {
-        const s = project(t.x, t.y, t.z);
+        const s = project(t.x, t.y, t.z + 34);
         if (!s) continue;
         const k = t.t / t.dur;
         ctx.globalAlpha = k > 0.6 ? 1 - (k - 0.6) / 0.4 : 1;
@@ -40,18 +39,6 @@ export function createOverlay(canvas) {
         ctx.fillStyle = t.color; ctx.fillText(t.text, s.x, s.y);
       }
       ctx.globalAlpha = 1;
-      // boss bar
-      if (boss) {
-        const bw = Math.min(520, w - 40), x = (w - bw) / 2, y = 66;
-        ctx.fillStyle = 'rgba(10,6,4,0.8)'; ctx.fillRect(x - 3, y - 3, bw + 6, 20);
-        ctx.strokeStyle = '#8a6a3a'; ctx.lineWidth = 1.5; ctx.strokeRect(x - 3, y - 3, bw + 6, 20);
-        const g = ctx.createLinearGradient(x, 0, x + bw, 0);
-        g.addColorStop(0, boss.enraged ? '#ff4a1a' : '#b8281c'); g.addColorStop(1, boss.enraged ? '#ff9a2a' : '#e8563a');
-        ctx.fillStyle = g; ctx.fillRect(x, y, bw * Math.max(0, boss.hp / boss.maxHp), 14);
-        ctx.font = '700 13px Georgia, serif'; ctx.fillStyle = '#f2e4c4';
-        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-        ctx.strokeText(boss.def.name, w / 2, y - 7); ctx.fillText(boss.def.name, w / 2, y - 7);
-      }
     },
   };
   return api;
