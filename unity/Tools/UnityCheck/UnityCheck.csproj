@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Compile-checks the Unity runtime and editor scripts against Unity's reference assemblies (NuGet:
+       UnityEngine.Modules 2021.3, UnityEditor 2019.3). Pass -p:UnityRefs=<folder with the DLLs>. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DefineConstants>UNITY_EDITOR;UNITY_2021_3_OR_NEWER</DefineConstants>
+    <NoWarn>CS0618;CS0649;CS0414</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/HighkeepRoad/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="$(UnityRefs)/engine/*.dll" Private="false" />
+    <Reference Include="$(UnityRefs)/editor/UnityEditor.dll" Private="false" />
+  </ItemGroup>
+</Project>
