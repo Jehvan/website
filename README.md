@@ -1,11 +1,10 @@
 # Highkeep Road
-> **Unity version:** the game has been rebuilt for Unity in [`unity/`](unity/README.md) (click-to-move, animated 3D characters). The Python/Panda3D version is in `python/`.
 
-> **Two versions live here.** The browser game (Vite + three.js) is documented below; the Python / Panda3D rewrite is in
-> [`python/`](python/README.md) (`cd python && pip install -r requirements.txt && python main.py`).
+An original medieval-fantasy action RPG for the browser, in the spirit of Kingsroad: click-to-move, click-to-attack,
+animated 3D heroes and skeleton raiders, torch-lit halls. Built with **Vite + three.js 0.187**.
 
-An original medieval-fantasy action RPG for the browser. Built with **Vite + three.js 0.128**; every texture, model and
-icon is generated in code (canvas textures, procedural geometry) — there are no image or model files.
+> Other versions in this repo: a Unity project in [`unity/`](unity/README.md) and a Python / Panda3D one in
+> [`python/`](python/README.md). The browser game below is the current one.
 
 > The king rode east and never returned. The Ashen Warband holds the road from Millbrook to Highkeep, and the heir is
 > held in the Throne Hall. Fight down the road to free the heir.
@@ -20,13 +19,14 @@ npm run build    # production build in dist/
 
 ## Play
 
-| Action | Desktop | Touch |
+| Action | Mouse / keyboard | Touch |
 | --- | --- | --- |
-| Move | `WASD` / arrows | floating joystick (left half of the screen) |
-| Aim | mouse | auto-aims at the nearest enemy |
-| Attack | click / `Space` | attack button |
-| Skills | `1` `2` `3` (unlock at level 1 / 3 / 5) | skill buttons |
+| Walk | click the ground (hold to keep walking toward the cursor); `WASD` also works | tap the ground (hold to keep walking) |
+| Attack | click an enemy: the hero walks into range and attacks until it falls | tap an enemy |
+| Attack in place | `Shift`+click or hold `Space` | |
+| Skills | `1` `2` `3` (aimed at your target, else the cursor) | skill buttons |
 | Potion | `F` | potion button |
+| Zoom | mouse wheel | |
 | Pause | `Esc` / `P` | pause button |
 
 Title → pick a class (or continue) → Camp (road map, hero, bag with compare-before-equip, potion shop) → stage waves →
@@ -44,8 +44,18 @@ House Sigil (stat bonuses plus gold/experience boons), and collect/equip artifac
 **Scout Lodge** (Advance → Lodge, opens after stage 3): send scouts on real-time expeditions (they keep running while the
 game is closed) for steel, gold and artifacts; rarer scouts raise the artifact odds.
 
-Graphics can be switched between **Low** and **High** from the pause menu (Low is the default on touch devices:
-no shadow maps, pixel ratio 1, fewer instances and particles).
+Graphics can be switched between **Low** and **High** from the pause menu.
+
+## Art
+
+All art is free CC0: characters, buildings and props from the **KayKit** packs by Kay Lousberg (kaylousberg.com), and
+ground / stone / wood textures from **Poly Haven**. Characters were trimmed to the animations the game uses with
+`tools/blender_chars.py`; `tools/fetch_polyhaven.py` downloads the textures.
+
+## Checks
+
+- `npx vite-node tools/simtest.mjs`: a bot that only clicks enemies plays every stage with every class.
+- `node tools/play.mjs <out> <class> <stage>`: drives the real game in headless Chromium and saves screenshots.
 
 ## Code layout
 
@@ -55,9 +65,10 @@ no shadow maps, pixel ratio 1, fewer instances and particles).
 | `src/world.js` | seeded stage layouts (road, props, obstacles) and collision |
 | `src/items.js`, `src/save.js` | loot rolls, hero stats, power score, `localStorage` persistence |
 | `src/game.js` | game state and simulation: waves, combat, AI, skills, loot |
-| `src/render2d.js` | placeholder / WebGL-less fallback renderer (`?2d` forces it) |
-| `src/renderer.js` | three.js renderer: camera, sky + PMREM, shadows, effects, entity sync |
-| `src/art/*` | procedural textures, materials, jointed humanoid rig, characters, props, world dressing |
+| `src/nav.js` | A* paths for click-to-move and the flow field enemies follow |
+| `src/renderer.js` | three.js renderer: camera, shadows, bloom and colour grade, picking, town hub |
+| `src/gfx/*` | model catalogue, stage builder, PBR ground blending, animated characters, spell effects |
+| `src/layouts.json` | baked stage layouts (props, obstacles, roads) |
 | `src/overlay.js` | 2D overlay canvas: damage numbers, health bars, boss bar |
 | `src/hud.js`, `src/ui.js`, `src/icons.js` | HUD, title/camp/result/pause screens, procedural icons |
 | `src/input.js` | keyboard, mouse and touch input |

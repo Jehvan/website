@@ -30,6 +30,27 @@ function proto(spec) {
   return out;
 }
 
+// Shared by every prop material: a dithered hole between the camera and the hero, so trees and buildings never hide them.
+export const SEE_THROUGH = { uHole: { value: new THREE.Vector4(0, 0, 0, 0) }, uCam: { value: new THREE.Vector3() } };
+function seeThrough(mat) {
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, SEE_THROUGH);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vSeeW;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvSeeW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vSeeW; uniform vec4 uHole; uniform vec3 uCam;')
+      .replace('void main() {', `void main() {
+        if (uHole.w > 0.0 && vSeeW.y > 0.5) {
+          vec3 a = uCam, b = uHole.xyz + vec3(0.0, 1.0, 0.0), ab = b - a;
+          float t = clamp(dot(vSeeW - a, ab) / dot(ab, ab), 0.0, 1.0);
+          float d = length(vSeeW - (a + ab * t));
+          float k = (1.0 - smoothstep(uHole.w * 0.55, uHole.w, d)) * step(t, 0.97);
+          float dither = fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453);
+          if (k > 0.0 && dither < k * 0.88) discard;
+        }`);
+  };
+  mat.customProgramCacheKey = () => 'seeThrough';
+}
+
 export class Stage {
   constructor(L, quality) {
     this.L = L;
@@ -103,6 +124,7 @@ export class Stage {
         list.forEach((g) => g.dispose());
         if (!merged) continue;
         const m = new THREE.MeshStandardMaterial({ map: mat.map, color: 0xffffff, roughness: 0.88, metalness: 0, vertexColors: vc });
+        seeThrough(m);
         const mesh = new THREE.Mesh(merged, m);
         mesh.castShadow = true; mesh.receiveShadow = true;
         this.root.add(mesh);
@@ -188,8 +210,8 @@ export class Stage {
     this.add('chest', x - 220, y + 10, 0, 1); this.add('keg', x + 220, y + 10, 0, 1); this.add('candles', x - 60, y - 8, 0, 1, 1.2); this.add('candles', x + 60, y - 8, 0, 1, 1.2);
     // long red carpet down the hall
     const c = document.createElement('canvas'); c.width = 64; c.height = 256; const g = c.getContext('2d');
-    g.fillStyle = '#5a0d10'; g.fillRect(0, 0, 64, 256); g.fillStyle = '#b8892e'; g.fillRect(4, 0, 4, 256); g.fillRect(56, 0, 4, 256);
-    g.fillStyle = '#7a1418'; for (let i = 0; i < 8; i++) { g.beginPath(); g.moveTo(32, i * 32 + 4); g.lineTo(44, i * 32 + 16); g.lineTo(32, i * 32 + 28); g.lineTo(20, i * 32 + 16); g.fill(); }
+    g.fillStyle = '#8a1a1c'; g.fillRect(0, 0, 64, 256); g.fillStyle = '#b8892e'; g.fillRect(4, 0, 4, 256); g.fillRect(56, 0, 4, 256);
+    g.fillStyle = '#a8282a'; for (let i = 0; i < 8; i++) { g.beginPath(); g.moveTo(32, i * 32 + 4); g.lineTo(44, i * 32 + 16); g.lineTo(32, i * 32 + 28); g.lineTo(20, i * 32 + 16); g.fill(); }
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, 6);
     const len = (this.L.bounds.y1 - y - 20) * S;
     const carpet = new THREE.Mesh(new THREE.PlaneGeometry(4.6, len), new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 }));

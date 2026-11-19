@@ -8,7 +8,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { preload, S, wx, wz } from './gfx/assets.js';
 import { allModelFiles } from './gfx/catalog.js';
-import { Stage } from './gfx/stage.js';
+import { Stage, SEE_THROUGH } from './gfx/stage.js';
 import { Character } from './gfx/chars.js';
 import { Effects } from './gfx/fx.js';
 import { buildLayout } from './world.js';
@@ -53,7 +53,7 @@ export async function createRenderer(canvas, settings, onProgress) {
   let stage = null, hero = null, fx = null, hub = null;
   const foes = new Map();
   const look = new THREE.Vector3(), want = new THREE.Vector3();
-  let camInit = false, dist = 22, pitch = THREE.MathUtils.degToRad(42), hoverId = 0, hubT = 0;
+  let camInit = false, dist = 22, pitch = THREE.MathUtils.degToRad(48), hoverId = 0, hubT = 0;
   const raycaster = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), _v = new THREE.Vector3(), _n = new THREE.Vector2();
 
   function applyTheme(th) {
@@ -106,6 +106,9 @@ export async function createRenderer(canvas, settings, onProgress) {
       fx = new Effects(stage.dyn);
       hero = new Character(game.save.cls, stage.dyn);
       hero.radius = game.p.r * S;
+      // soft key light that travels with the hero so they always read against dark floors
+      const key = new THREE.PointLight(0xffe2c0, stage.th.indoor ? 45 : 10, 10, 1.6);
+      key.position.set(0, 3.2, 1.2); hero.root.add(key);
       if (stage.heirAt) { const c = new Character('heir', stage.dyn); c.root.position.set(wx(stage.heirAt.x), 1.2, wz(stage.heirAt.y)); c.root.rotation.y = 0; stage.heir = c; }
       camInit = false; dist = 22;
     },
@@ -149,10 +152,11 @@ export async function createRenderer(canvas, settings, onProgress) {
         dist = W > H ? 27 : 34; pitch = THREE.MathUtils.degToRad(40);
         stage.tick(dt, look);
         placeCamera(0, Math.sin(hubT * 0.07) * 0.1);
+        SEE_THROUGH.uHole.value.w = 0;
         grade.uniforms.uHurt.value = 0;
       } else if (stage && game.p) {
         const p = game.p, t = game.time, sdt = game.paused ? 0 : dt;
-        pitch = THREE.MathUtils.degToRad(42);
+        pitch = THREE.MathUtils.degToRad(48);
         hero.updateHero(p, game.save.cls, sdt);
         const seen = new Set();
         for (const e of game.enemies) {
@@ -173,6 +177,8 @@ export async function createRenderer(canvas, settings, onProgress) {
         look.lerp(want, 1 - Math.exp(-6 * dt));
         stage.tick(dt, look);
         placeCamera(game.shake || 0);
+        SEE_THROUGH.uHole.value.set(wx(p.x), 0, wz(p.y), 5.2);
+        SEE_THROUGH.uCam.value.copy(cam.position);
         grade.uniforms.uHurt.value = Math.max(Math.min(1, p.hitT / 0.22) * 0.5, p.dead ? 0.5 : Math.max(0, 0.3 - p.hp / game.hero.maxHp) * 1.6);
       } else return;
       if (quality === 'low') renderer.render(scene, cam); else composer.render(dt);

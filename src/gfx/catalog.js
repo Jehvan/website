@@ -4,8 +4,8 @@ const h = (file, height, sink = 0) => ({ file: HX + file + '.gltf', height, sink
 const d = (file, height, sink = 0) => ({ file: DG + file + '.gltf.glb', height, sink });
 
 export const PROPS = {
-  tree: [h('tree_single_A', 7.6, -0.4), h('tree_single_B', 8.2, -0.4), h('tree_single_A', 6.4, -0.4)],
-  pine: [h('tree_single_B', 9, -0.4), h('tree_single_A', 8.4, -0.4)],
+  tree: [h('tree_single_A', 6.0, -0.3), h('tree_single_B', 6.4, -0.3), h('tree_single_A', 5.2, -0.3)],
+  pine: [h('tree_single_B', 6.8, -0.3), h('tree_single_A', 6.4, -0.3)],
   deadtree: [h('tree_single_A_cut', 1.5, -0.1)],
   rock: [h('rock_single_A', 0.6), h('rock_single_B', 0.9), h('rock_single_C', 0.7), h('rock_single_D', 1.0), h('rock_single_E', 0.8)],
   hay: [h('sack', 1.1), h('resource_lumber', 1.0)],
