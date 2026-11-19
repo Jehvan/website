@@ -14,6 +14,7 @@ namespace Highkeep
         public float Sink;            // push the base below ground (trees, rocks)
         public float Rim = 0.12f;
         public bool Center = true, CastShadows = true;
+        public bool SeeThrough = true;   // dissolve when between camera and hero (off for characters)
         public Color Tint = Color.white;
     }
 
@@ -39,7 +40,7 @@ namespace Highkeep
             new ModelSpec { Key = name, Path = DG + name, Texture = DunTex, Height = h, Sink = sink };
 
         static ModelSpec Chr(string name, string tex, float h, Color? tint = null) =>
-            new ModelSpec { Key = name + (tint.HasValue ? "_" + tint.Value : ""), Path = C + name, Texture = C + tex, Height = h, Center = false, Rim = 0.45f, Tint = tint ?? Color.white };
+            new ModelSpec { Key = name + (tint.HasValue ? "_" + tint.Value : ""), Path = C + name, Texture = C + tex, Height = h, Center = false, Rim = 0.45f, SeeThrough = false, Tint = tint ?? Color.white };
 
         // ---------------------------------------------------------------- characters
         public static readonly Dictionary<string, CharSpec> Chars = new Dictionary<string, CharSpec>
@@ -62,8 +63,8 @@ namespace Highkeep
         // ---------------------------------------------------------------- props (layout kind -> model choices)
         public static readonly Dictionary<string, ModelSpec[]> Props = new Dictionary<string, ModelSpec[]>
         {
-            ["tree"] = new[] { Hex("tree_single_A", 7.2f, -0.4f), Hex("tree_single_B", 7.6f, -0.4f), Hex("trees_A_medium", 6.2f, -0.3f) },
-            ["pine"] = new[] { Hex("tree_single_B", 8.4f, -0.4f), Hex("tree_single_A", 8.0f, -0.4f) },
+            ["tree"] = new[] { Hex("tree_single_A", 6.0f, -0.3f), Hex("tree_single_B", 6.4f, -0.3f), Hex("trees_A_medium", 5.2f, -0.3f) },
+            ["pine"] = new[] { Hex("tree_single_B", 6.8f, -0.3f), Hex("tree_single_A", 6.4f, -0.3f) },
             ["deadtree"] = new[] { Hex("tree_single_A_cut", 1.4f, -0.1f) },
             ["rock"] = new[] { Hex("rock_single_A", 0.55f), Hex("rock_single_B", 0.8f), Hex("rock_single_C", 0.6f), Hex("rock_single_D", 0.9f), Hex("rock_single_E", 0.7f) },
             ["hay"] = new[] { Hex("sack", 1.1f), Hex("resource_lumber", 1.0f) },

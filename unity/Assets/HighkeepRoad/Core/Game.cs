@@ -39,6 +39,9 @@ namespace Highkeep.Core
         public Dash Dash;
         public Spin Spin;
         public string SkillAnim;
+        // current click-to-move route
+        public List<(double x, double y)> Route;
+        public double RouteTx, RouteTy, RouteUntil;
     }
 
     public sealed class Enemy
@@ -144,6 +147,7 @@ namespace Highkeep.Core
         public readonly List<FloatText> Texts = new List<FloatText>();
         readonly List<(double t, string type)> spawnQ = new List<(double, string)>();
         public Layout L;
+        public Nav Nav;
         public StageState Stage;
         public RunStats Run;
         public Banner Banner;
@@ -184,6 +188,7 @@ namespace Highkeep.Core
             bool vault = sid == "vault";
             bool boss = vault ? floor % 5 == 0 : sid == "6";
             L = LayoutProvider(d.Theme, vault ? 1000 + floor : d.Num, vault && boss, floor);
+            Nav = new Nav(L);
             Hero = Items.HeroStats(Save);
             double sIdx = vault ? 5 + floor * 0.35 : d.Num - 1;
             Diff = new Dictionary<string, double>
@@ -858,8 +863,21 @@ namespace Highkeep.Core
             return best;
         }
 
-        int pSteer;
-        double pSteerT;
+        /// <summary>Heading for the hero along an A* path, refreshed when the goal moves.</summary>
+        double PathHeading(Player p, double tx, double ty)
+        {
+            if (p.Route == null || Time > p.RouteUntil || Dist(p.RouteTx, p.RouteTy, tx, ty) > 28)
+            {
+                p.Route = Nav.FindPath(p.X, p.Y, tx, ty);
+                p.RouteTx = tx;
+                p.RouteTy = ty;
+                p.RouteUntil = Time + 0.5;
+            }
+            var pts = p.Route;
+            while (pts.Count > 1 && Dist(pts[0].x, pts[0].y, p.X, p.Y) < 12) pts.RemoveAt(0);
+            (double x, double y) w = pts.Count > 0 ? pts[0] : (tx, ty);
+            return Math.Atan2(w.y - p.Y, w.x - p.X);
+        }
 
         // ------------------------------------------------------------ player
         void UpdatePlayer(double dt, GameInput inp)
@@ -934,7 +952,7 @@ namespace Highkeep.Core
                 double d = Dist(p.X, p.Y, tgt.X, tgt.Y);
                 if (d > AttackReach(tgt))
                 {
-                    double ang = SteerAngle(p.X, p.Y, p.R, tgt.X, tgt.Y, spd * dt, ref pSteer, ref pSteerT);
+                    double ang = PathHeading(p, tgt.X, tgt.Y);
                     mx = Math.Cos(ang);
                     my = Math.Sin(ang);
                 }
@@ -946,7 +964,7 @@ namespace Highkeep.Core
                 if (d < Math.Max(6, spd * dt)) inp.HasDest = false;
                 else
                 {
-                    double ang = SteerAngle(p.X, p.Y, p.R, inp.DestX, inp.DestY, spd * dt, ref pSteer, ref pSteerT);
+                    double ang = PathHeading(p, inp.DestX, inp.DestY);
                     double k = Math.Min(1, d / Math.Max(1e-3, spd * dt));
                     mx = Math.Cos(ang) * k;
                     my = Math.Sin(ang) * k;
@@ -1034,10 +1052,16 @@ namespace Highkeep.Core
         {
             double ang = Math.Atan2(ty - e.Y, tx - e.X);
             double step = speed * dt;
-            double best = e.Flying ? ang : SteerAngle(e.X, e.Y, e.R, tx, ty, step, ref e.Steer, ref e.SteerT);
+            double best = ang;
+            if (!e.Flying && !Nav.LineClear(e.X, e.Y, tx, ty))
+            {
+                // walk the shared flow field towards the hero when the straight line is blocked
+                var h = Nav.FieldHeading(e.X, e.Y);
+                best = h ?? SteerAngle(e.X, e.Y, e.R, tx, ty, step, ref e.Steer, ref e.SteerT);
+            }
             e.X += Math.Cos(best) * step;
             e.Y += Math.Sin(best) * step;
-            e.Face = ang;
+            e.Face = best;
             e.Walk += dt * speed / 14;
         }
 
@@ -1063,6 +1087,7 @@ namespace Highkeep.Core
         void UpdateEnemies(double dt)
         {
             var p = P;
+            Nav.UpdateField(p.X, p.Y, Time);
             for (int i = Enemies.Count - 1; i >= 0; i--)
             {
                 var e = Enemies[i];

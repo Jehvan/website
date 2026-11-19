@@ -244,6 +244,9 @@ namespace Highkeep
                 stage.Tick(dt, focus);
                 var L = game.L;
                 rig.Follow(focus, new Rect(0, -(float)L.H * W3.S, (float)L.W * W3.S, (float)L.H * W3.S), dt, (float)game.Shake);
+                // see-through: props between camera and hero dissolve (Lit.shader)
+                Shader.SetGlobalVector("_HkHole", new Vector4(focus.x, focus.y, focus.z, 5.2f));
+                Shader.SetGlobalVector("_HkCam", rig.Cam.transform.position);
             }
             else if (hub != null)
             {
@@ -255,6 +258,7 @@ namespace Highkeep
                 // camp: plaza sits left of the side panel; title: centred
                 var look = c + new Vector3(Mode == "camp" ? 7.5f : 0f, 0, Mode == "camp" ? -1.5f : -2f) + new Vector3(Mathf.Sin(hubT * 0.12f) * 0.8f, 0, 0);
                 rig.Place(look, 0, Mathf.Sin(hubT * 0.07f) * 6f);
+                Shader.SetGlobalVector("_HkHole", Vector4.zero);
             }
         }
 

@@ -64,9 +64,9 @@ namespace Highkeep
         }
 
         /// <summary>Shared lit material for a texture atlas (one per KayKit pack / character).</summary>
-        public static Material LitMaterial(string texPath, Color tint, float rim = 0.35f, float gloss = 0.12f)
+        public static Material LitMaterial(string texPath, Color tint, float rim = 0.35f, float gloss = 0.12f, bool seeThrough = false)
         {
-            string key = "lit:" + texPath + ":" + tint + ":" + rim + ":" + gloss;
+            string key = "lit:" + texPath + ":" + tint + ":" + rim + ":" + gloss + (seeThrough ? ":see" : "");
             if (mats.TryGetValue(key, out var m)) return m;
             m = new Material(Shader("Highkeep/Lit")) { name = key };
             var tex = texPath != null ? Load<Texture2D>(texPath) : null;
@@ -74,6 +74,7 @@ namespace Highkeep
             m.SetColor("_Color", tint);
             m.SetFloat("_Rim", rim);
             m.SetFloat("_Glossiness", gloss);
+            m.SetFloat("_SeeThrough", seeThrough ? 1f : 0f);
             m.enableInstancing = true;
             mats[key] = m;
             return m;
@@ -121,7 +122,7 @@ namespace Highkeep
             var inst = Object.Instantiate(src, holder.transform, false);
             inst.name = "model";
             inst.transform.localRotation = Quaternion.Euler(0, spec.Yaw, 0) * inst.transform.localRotation;
-            var mat = spec.Texture != null || spec.Tint != Color.white ? LitMaterial(spec.Texture, spec.Tint, spec.Rim) : null;
+            var mat = spec.Texture != null || spec.Tint != Color.white ? LitMaterial(spec.Texture, spec.Tint, spec.Rim, 0.12f, spec.SeeThrough) : null;
             foreach (var r in inst.GetComponentsInChildren<Renderer>(true))
             {
                 if (mat != null)
